@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Second Brain',
+  title: 'falacomigo.ai',
   description: 'Mentes digitais de criadores — converse com o conteúdo deles.',
 };
 

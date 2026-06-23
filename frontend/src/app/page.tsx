@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Second Brain — crie a sua mente digital',
+  title: 'falacomigo.ai — crie a sua mente digital',
   description:
     'Conecte seu conteúdo e tenha um clone de IA que conversa com a sua audiência no seu estilo, citando suas fontes. Para criadores brasileiros.',
 };
@@ -28,7 +28,7 @@ function NavBar() {
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent-gold text-accent">
             ◆
           </span>
-          Second Brain
+          falacomigo.ai
         </span>
         <div className="flex items-center gap-3 text-sm">
           <a href="/login" className="text-zinc-400 transition hover:text-zinc-100">
@@ -245,7 +245,7 @@ function Footer() {
   return (
     <footer className="border-zinc-800/70 border-t">
       <div className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-10 text-xs text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-        <span>© 2026 Second Brain</span>
+        <span>© 2026 falacomigo.ai</span>
         <span className="max-w-md sm:text-right">
           Você conversa com a mente digital do criador, não com a pessoa real. Conteúdo educativo;
           não é recomendação de investimento.
