@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP** (3/5 tarefas).
 - **Próxima tarefa:** **E6.4** — Studio do criador (`/studio`): conectar fontes, status de indexação, editor da Persona Card, "testar o clone". (E6.5 = analytics cards depois.)
-- **Último commit:** `e41e7a2 E6.2: chat /c/[slug]/chat estilo ChatGPT (UI)`.
+- **Último commit:** `a3444a4 E6.3: login (Supabase) + auth no chat + paywall + checkout`.
 - **Testes:** 316 verdes em 36 arquivos. Lint + typecheck verdes.
 
 > ✅ **Follow-up E5.2 fechado no E6.3**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` (slug resolvido do body via `resolveSlug` async; userId vem do JWT, creatorId do `access`). Os 13 testes de chat foram atualizados p/ provisionar subscriber+assinatura ativa e mandar JWT (+2 testes novos: 401 sem JWT, 402 sem assinatura).
