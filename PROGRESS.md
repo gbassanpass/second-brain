@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E5 — Auth, paywall e billing** ✅ **CONCLUÍDO (3/3 tarefas)**.
 - **Próxima tarefa:** **E6.1** — Landing `/c/[slug]` (início do épico E6, frontend MVP). ⚠️ Fim de épico E5 → parar para revisão humana.
-- **Último commit:** `975b9e6 E5.2: middleware requireAccess (paywall) + GET /api/c/:slug/access`.
+- **Último commit:** `d6aae72 E5.3: webhook idempotente de billing (Stripe MVP)`.
 - **Testes:** 283 verdes em 32 arquivos. Lint + typecheck verdes.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
