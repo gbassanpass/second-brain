@@ -23,15 +23,48 @@
 
 ## ⛔ Bloqueios atuais
 
-- **Docker Desktop não está rodando.** Tentei restart automático mas o engine não voltou; precisa intervenção manual.
-  - **Ação do usuário:** abrir o **Docker Desktop** (Spotlight → "Docker"), esperar até o ícone na barra de menu mostrar **"Engine running"** verde, e me avisar.
-  - Confirmação rápida no terminal: `docker info --format '{{.ServerVersion}}'` — qualquer versão impressa significa OK.
-  - Ao retomar: faço `make up` (sobe Supabase local + Redis), `make migrate` (aplica `0000` + `0001`), valido `\d chunks` mostrando HNSW + GIN, marco o checkbox, commit final + push.
+- **Docker Desktop não estava rodando antes do restart do PC.** Reabra após o restart.
+  - O restart do macOS deve resolver. Após o boot: abrir Docker Desktop, esperar ícone "Engine running" verde.
+  - Confirmação no terminal: `docker info --format '{{.ServerVersion}}'` — qualquer versão impressa = OK.
+
+## ▶️ Roteiro exato de retomada (cole na próxima sessão)
+
+```text
+Olá Claude. Estou voltando ao projeto após reiniciar o PC.
+
+1. Leia PROGRESS.md (este arquivo) e CLAUDE.md.
+2. Confirme com `docker info --format '{{.ServerVersion}}'` que o Docker está ativo.
+3. Continue o E0.2 do ponto exato:
+   a. `make up` (sobe Supabase local + Redis local).
+   b. Após o supabase start imprimir as chaves, copie para .env:
+      SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
+      DATABASE_URL, DATABASE_URL_DIRECT (locais).
+   c. `make migrate` (aplica 0000 + 0001 via drizzle-kit).
+   d. Smoke do schema: psql contra DATABASE_URL_DIRECT, rodar `\d chunks` e
+      confirmar `chunks_embedding_hnsw_idx` (HNSW) e `chunks_tsv_gin_idx` (GIN).
+   e. Smoke do trigger: `INSERT INTO chunks (creator_id, document_id, ordinal, text)`
+      seguido de `SELECT tsv FROM chunks` — tsv deve estar populado.
+   f. Smoke do bucket: `SELECT id FROM storage.buckets WHERE id='creator-content'`.
+4. Marque o checkbox de E0.2 em docs/07-roadmap-backlog.md E em PROGRESS.md.
+5. Atualize a seção "Decisões consolidadas" do PROGRESS.md trocando "Postgres 16"
+   por "Postgres 17" (e nos docs 03/04/CLAUDE.md). É um achado real do E0.2.
+6. Commit "E0.2: smoke + checkboxes" + push.
+7. Pare para revisão antes do E0.3.
+```
 
 ## Notas técnicas (E0.2)
 
-- **Postgres 17** (default do Supabase CLI 2.107). Os docs `03/04/CLAUDE.md` mencionam "Postgres 16" — atualizar quando o smoke passar.
+- **Postgres 17** (default do Supabase CLI 2.107). Os docs `03/04/CLAUDE.md` mencionam "Postgres 16" — atualizar quando o smoke passar (passo 5 do roteiro acima).
 - Migrations seguem o jeito Drizzle: cada `.sql` em `infra/supabase/migrations/` + journal em `meta/`. Snapshots da `meta/` são ignorados pelo Biome.
+- Drizzle Kit usa `DATABASE_URL_DIRECT` (conexão direta) — o transaction pooler do Supabase quebra DDL.
+
+## Estado do repo no restart
+
+- **Último commit:** `6f7b3ad cleanup: remove stray supabase/ at root`.
+- **Branch:** `main`, sincronizada com `origin/main`.
+- **Working tree:** limpo (`git status` deve estar vazio ao voltar).
+- **Containers Docker:** nenhum (Docker estava parado quando o usuário reiniciou).
+- **`.env` local:** ainda não existe — criar do `.env.example` no passo 3b acima.
 
 ## Checklist da Fase 0
 
