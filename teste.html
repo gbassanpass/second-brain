@@ -1,0 +1,30 @@
+<script src="https://cdn.getphyllo.com/connect/v2/phyllo-connect.js"></script>
+
+<script>
+const config = {
+  clientDisplayName: "gumaba", // the name of your app that you want the creators to see while granting access
+  environment: "staging", // the mode in which you want to use the SDK,  'sandbox' or 'production'
+  userId: "08f51625-2aba-4dd4-b8b6-2d03e77054b0", // the unique user_id parameter returned by Phyllo API when you create a user (see https://docs.getphyllo.com/docs/api-reference/reference/openapi.v1.yml/paths/~1v1~1users/post)
+  token: "141dabec-5835-4860-b39d-3a58bd0283b8"
+};
+    
+const phylloConnect = PhylloConnect.initialize(config);
+    
+phylloConnect.on("accountConnected", (accountId, workplatformId, userId) => {  // gives the successfully connected account ID and work platform ID for the given user ID
+  console.log(`onAccountConnected: ${accountId}, ${workplatformId}, ${userId}`);
+})
+phylloConnect.on("accountDisconnected", (accountId, workplatformId, userId) => {  // gives the successfully disconnected account ID and work platform ID for the given user ID
+  console.log(`onAccountDisconnected: ${accountId}, ${workplatformId}, ${userId}`);
+})
+phylloConnect.on("tokenExpired", (userId) => {  // gives the user ID for which the token has expired
+  console.log(`onTokenExpired: ${userId}`);  // the SDK closes automatically in case the token has expired, and you need to handle this by showing an appropriate UI and messaging to the users
+})
+phylloConnect.on("exit", (reason, userId) => {  // indicates that the user with given user ID has closed the SDK and gives an appropriate reason for it
+  console.log(`onExit: ${reason}, ${userId}`);
+})
+phylloConnect.on("connectionFailure", (reason, workplatformId, userId) => {  // optional, indicates that the user with given user ID has attempted connecting to the work platform but resulted in a failure and gives an appropriate reason for it
+  console.log(`onConnectionFailure: ${reason}, ${workplatformId}, ${userId}`);
+})
+
+your_button.onclick = phylloConnect.open();
+</script>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fausto · mente digital — protótipo (estilo ChatGPT)</title>
+<style>
+  :root{
+    --bg:#212121; --side:#171717; --side2:#222; --bot:#2a2a2a; --txt:#ececec; --muted:#9a9a9a;
+    --line:#333; --accent:#c8a24a; --navy:#0f2540; --user:#2f2f2f;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--txt);height:100vh;overflow:hidden;display:flex}
+  /* SIDEBAR */
+  .sidebar{width:260px;background:var(--side);display:flex;flex-direction:column;flex-shrink:0;border-right:1px solid var(--line)}
+  .newchat{margin:12px;padding:11px 14px;border:1px solid var(--line);border-radius:12px;display:flex;align-items:center;gap:10px;
+    cursor:pointer;font-size:14px;font-weight:500;transition:.15s}
+  .newchat:hover{background:var(--side2)}
+  .newchat .ic{font-size:18px;line-height:1}
+  .convs{flex:1;overflow-y:auto;padding:6px 8px}
+  .convs .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;padding:10px 8px 6px}
+  .conv{padding:9px 10px;border-radius:9px;font-size:13.5px;color:#cfcfcf;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conv:hover,.conv.active{background:var(--side2)}
+  .profile{border-top:1px solid var(--line);padding:12px;display:flex;align-items:center;gap:10px;font-size:13px}
+  .av{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#e0bf6a);
+    display:flex;align-items:center;justify-content:center;color:var(--navy);font-weight:700;font-size:12px;flex-shrink:0}
+  .profile small{display:block;color:var(--muted);font-size:11px}
+  /* MAIN */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{height:54px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;padding:0 18px;flex-shrink:0}
+  .topbar .name{font-weight:600;font-size:15px}
+  .topbar .tag{font-size:11px;color:var(--navy);background:var(--accent);padding:2px 8px;border-radius:6px;font-weight:700}
+  .topbar .menu{display:none}
+  .chat{flex:1;overflow-y:auto;padding:24px 0}
+  .col{max-width:768px;margin:0 auto;padding:0 20px}
+  /* empty state */
+  .empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:20px}
+  .empty .big{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#e0bf6a);
+    display:flex;align-items:center;justify-content:center;color:var(--navy);font-weight:700;font-size:20px;margin-bottom:8px}
+  .empty h1{font-size:23px;font-weight:600}
+  .empty p{color:var(--muted);font-size:14px;max-width:440px;margin-bottom:18px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:560px;width:100%}
+  .scard{border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-align:left;cursor:pointer;font-size:13.5px;color:#dcdcdc;transition:.15s}
+  .scard:hover{background:var(--side2);border-color:#444}
+  .scard b{display:block;font-weight:500;margin-bottom:2px}
+  .scard span{color:var(--muted);font-size:12px}
+  /* messages */
+  .row{display:flex;gap:14px;padding:18px 0;align-items:flex-start}
+  .row.user{justify-content:flex-end}
+  .row .mav{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+  .row.bot .mav{background:linear-gradient(135deg,var(--accent),#e0bf6a);color:var(--navy)}
+  .bubble{font-size:15.5px;line-height:1.65;max-width:100%}
+  .row.user .bubble{background:var(--user);padding:11px 15px;border-radius:16px;max-width:80%}
+  .bubble .tag2{display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--accent);margin-bottom:7px}
+  .bubble ul{margin:8px 0 0 20px}.bubble li{margin:4px 0}
+  .frame{margin-top:10px;padding:11px 14px;background:#333028;border-left:3px solid var(--accent);border-radius:0 8px 8px 0;font-size:14px}
+  .guard{margin-top:10px;padding:11px 14px;background:#3a3322;border-left:3px solid #d6a72e;border-radius:0 8px 8px 0;font-size:13.5px;color:#e7d9b3}
+  .sources{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap}
+  .src{font-size:12px;color:#bdbdbd;border:1px solid var(--line);border-radius:14px;padding:4px 10px;cursor:pointer}
+  .src:hover{background:var(--side2)}
+  .typing{display:flex;gap:5px;padding:6px 0}
+  .typing span{width:8px;height:8px;border-radius:50%;background:#777;animation:bl 1.2s infinite}
+  .typing span:nth-child(2){animation-delay:.2s}.typing span:nth-child(3){animation-delay:.4s}
+  @keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  /* composer */
+  .composer{padding:10px 0 8px;flex-shrink:0}
+  .cwrap{max-width:768px;margin:0 auto;padding:0 20px}
+  .inputbox{display:flex;align-items:flex-end;gap:8px;background:var(--bot);border:1px solid var(--line);border-radius:22px;padding:8px 8px 8px 16px}
+  .inputbox textarea{flex:1;background:none;border:none;color:var(--txt);font-size:15px;resize:none;outline:none;max-height:140px;line-height:1.5;font-family:inherit;padding:6px 0}
+  .send{width:36px;height:36px;border-radius:50%;border:none;background:var(--accent);color:var(--navy);font-size:17px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .send:disabled{background:#555;color:#888;cursor:default}
+  .disc{text-align:center;font-size:11px;color:var(--muted);padding:8px 20px 6px}
+  @media(max-width:760px){
+    .sidebar{display:none}.topbar .menu{display:block;font-size:20px;cursor:pointer}.cards{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="newchat" onclick="resetChat()"><span class="ic">+</span> Nova conversa</div>
+    <div class="convs">
+      <div class="lbl">Hoje</div>
+      <div class="conv active">Guerra EUA × Irã sem torcer</div>
+      <div class="conv">Faculdade na era da IA</div>
+      <div class="conv">Decisão sobre mudar de cidade</div>
+      <div class="lbl">Ontem</div>
+      <div class="conv">O que pensar sobre a eleição 2026</div>
+      <div class="conv">Fé e razão no dia a dia</div>
+    </div>
+    <div class="profile">
+      <div class="av">GB</div>
+      <div>Assinante Pro<small>Plano ativo · R$29/mês</small></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <span class="menu">☰</span>
+      <div class="av" style="width:32px;height:32px">FB</div>
+      <span class="name">Fausto Bassan</span>
+      <span class="tag">mente digital</span>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="composer">
+      <div class="cwrap">
+        <div class="inputbox">
+          <textarea id="inp" rows="1" placeholder="Pergunte ao Fausto..."></textarea>
+          <button class="send" id="send">➤</button>
+        </div>
+        <div class="disc">Mente digital de Fausto Bassan · conteúdo educativo, não é recomendação de investimento.</div>
+      </div>
+    </div>
+  </main>
+
+<script>
+const chat=document.getElementById('chat'), inp=document.getElementById('inp'), sendBtn=document.getElementById('send');
+let started=false;
+
+const SCRIPTS=[
+  {chip:["Me explica EUA × Irã sem torcer","Geopolítica"],keys:["irã","ira","eua","guerra","conflito"],
+   html:`<span class="tag2">Entendendo sem torcer</span>O segredo é não comprar a narrativa pronta de nenhum lado. Separando os interesses:
+   <ul><li><b>EUA:</b> segurança regional, conter o programa nuclear, pressão de aliados.</li>
+   <li><b>Irã:</b> soberania, dissuasão, influência regional.</li>
+   <li><b>De fora:</b> petróleo, rotas comerciais, o jogo de China e Rússia por trás.</li></ul>
+   <div class="frame">🧭 Antes de eleger um vilão, pergunte <i>quem ganha o quê</i> com cada desfecho. Geopolítica é interesse contra interesse.</div>`,
+   src:["Reel: Quem ganhou a guerra EUA × Irã?","Reel: Por que Trump atacou o Irã"]},
+  {chip:["Faculdade vale a pena na era da IA?","Ciência"],keys:["faculdade","estudar","ia","carreira","curso"],
+   html:`<span class="tag2">Decisão com clareza</span>Depende de três coisas suas:
+   <ul><li><b>Objetivo:</b> a área exige diploma regulado ou valoriza portfólio?</li>
+   <li><b>Custo de oportunidade:</b> o que você deixa de ganhar nesses anos?</li>
+   <li><b>Como você aprende:</b> precisa de estrutura ou é autodidata?</li></ul>
+   <div class="frame">🧭 A IA não matou o aprender — mudou o que é escasso. Hoje vale menos "saber a informação" e mais saber julgar, decidir e se comunicar.</div>`,
+   src:["Reel: Fazer faculdade na era da IA"]},
+  {chip:["Estou numa decisão difícil","Vida"],keys:["decisão","decisao","dúvida","mudar","vida","medo","escolha"],
+   html:`<span class="tag2">Pensando junto</span>Decisão difícil costuma travar por medo de errar. Três perguntas que ajudam:
+   <ul><li>Daqui a 10 anos, qual escolha você vai se orgulhar de ter tido coragem de fazer?</li>
+   <li>Você está fugindo de um desconforto ou indo atrás de um propósito?</li>
+   <li>O que decidiria se não estivesse com medo do que os outros vão achar?</li></ul>
+   <div class="frame">🕊️ Clareza raramente vem só da cabeça. Vale orar/silenciar e ouvir o que fica de pé depois que a ansiedade abaixa.</div>`,
+   src:[]},
+  {chip:["Que criptomoeda eu compro?","Investimento"],keys:["cripto","bitcoin","investir","ação","acao","comprar","aplicar","bolsa"],
+   html:`<span class="tag2">Aqui eu seguro a onda 🙂</span>Não vou dizer "compre essa ou aquela" — isso seria recomendação de investimento, e eu não faço isso.
+   <div class="guard">⚠️ Recomendar investimento exige profissional habilitado. O que posso fazer é te ajudar a entender o cenário.</div>
+   Dá pra: explicar <b>como funciona</b> sem viés; te dar as <b>perguntas certas</b> (qual seu prazo? quanto aguenta perder?); apontar <b>sinais de furada</b> (ganho garantido = alerta). Pra decidir, fala com um profissional certificado.`,
+   src:["Reel: Essa criptomoeda pode acabar com a poupança"]}
+];
+const FALLBACK={html:`<span class="tag2">Sem torcer</span>Boa. Antes de cravar opinião, vamos olhar por mais de um ângulo: quais os 2-3 interesses em jogo? Quem ganha e quem perde? Onde acabam os fatos e começa a narrativa de cada lado?
+  <div class="frame">🧭 Me dá um pouco mais de contexto que eu aprofundo. Dou conta de entender o mundo, decisões de vida e fé — investimento específico fica fora.</div>`,src:[]};
+
+function renderEmpty(){
+  chat.innerHTML=`<div class="empty"><div class="big">FB</div>
+    <h1>Converse com o Fausto</h1>
+    <p>Entenda o mundo sem torcer, pense decisões de vida e reflita com razão e fé. Não dou recomendação de investimento.</p>
+    <div class="cards" id="cards"></div></div>`;
+  const cards=document.getElementById('cards');
+  SCRIPTS.forEach(s=>{const d=document.createElement('div');d.className='scard';
+    d.innerHTML='<b>'+s.chip[0]+'</b><span>'+s.chip[1]+'</span>';d.onclick=()=>send(s.chip[0]);cards.appendChild(d);});
+}
+function addUser(t){const r=document.createElement('div');r.className='row user';
+  r.innerHTML='<div class="bubble">'+t.replace(/</g,'&lt;')+'</div>';chat.appendChild(r);scroll();}
+function addTyping(){const r=document.createElement('div');r.className='row bot';r.id='typing';
+  r.innerHTML='<div class="mav">FB</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+  chat.appendChild(r);scroll();}
+function addBot(o){const t=document.getElementById('typing');if(t)t.remove();
+  let s='';if(o.src&&o.src.length){s='<div class="sources">'+o.src.map(x=>'<span class="src">📄 '+x+'</span>').join('')+'</div>';}
+  const r=document.createElement('div');r.className='row bot';
+  r.innerHTML='<div class="mav">FB</div><div class="bubble">'+o.html+s+'</div>';chat.appendChild(r);scroll();}
+function scroll(){chat.scrollTop=chat.scrollHeight;}
+function match(t){const lc=t.toLowerCase();for(const s of SCRIPTS){if(s.keys.some(k=>lc.includes(k)))return s;}return FALLBACK;}
+function send(text){text=(text||inp.value).trim();if(!text)return;
+  if(!started){chat.innerHTML='';started=true;}
+  addUser(text);inp.value='';inp.style.height='auto';
+  addTyping();setTimeout(()=>addBot(match(text)),850);}
+function resetChat(){started=false;renderEmpty();}
+
+sendBtn.onclick=()=>send();
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+inp.addEventListener('input',()=>{inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,140)+'px';});
+renderEmpty();
+</script>
+</body>
+</html>

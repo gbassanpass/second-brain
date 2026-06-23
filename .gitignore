@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test/coverage
+coverage/
+.vitest/
+*.lcov
+
+# Supabase local
+infra/supabase/.branches/
+infra/supabase/.temp/
+infra/supabase/.env
+
+# Drizzle
+drizzle/meta/_journal.json.bak
+
+# Mídia bruta do criador (sob mídia, ingestada para Storage; não versionar)
+data/fausto/audio/
+data/fausto/video/
+data/fausto/*.mp3
+data/fausto/*.mp4
+data/fausto/*.wav
+data/fausto/*.m4a
