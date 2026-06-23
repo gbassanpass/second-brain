@@ -76,6 +76,7 @@ export function createChatRouter(deps: ChatRouterDeps): Hono {
         fallback: result.fallback,
         guardrailFlag: result.guardrailFlag,
         guardrail: result.guardrail,
+        postFilter: result.postFilter,
         model: result.model,
         routingReason: result.routingReason,
         usage: result.usage,

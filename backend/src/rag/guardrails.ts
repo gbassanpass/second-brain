@@ -91,6 +91,61 @@ const FINANCIAL_TERMS: NamedPattern[] = [
   },
 ];
 
+/**
+ * Stage-3 (post-generation) filter for the investment guardrail — docs/05 §1.
+ *
+ * Scans the LLM reply for the unambiguous shapes of a direct buy/sell/allocate
+ * order. Patterns are intentionally narrow so they don't fire on:
+ *   - the user's own quoted question (e.g. "eu devo comprar" — first person),
+ *   - the EDUCATIONAL_MODE_PREAMBLE that the orchestrator prepends (its
+ *     placeholders "compre X / venda Y / aloque Z%" use letters, not assets
+ *     or digits),
+ *   - educational paraphrases ("antes de decidir comprar, considere...").
+ *
+ * When a match fires, the orchestrator regenerates with a reinforced preamble
+ * (one retry) and, if it still violates, falls back to a canned educational
+ * reply — see services/chat.ts.
+ */
+export interface RecommendationDetection {
+  violated: boolean;
+  matches: string[];
+}
+
+const RECOMMENDATION_PATTERNS: NamedPattern[] = [
+  // P1 — imperative verb + financial asset ("compre Bitcoin", "venda dólar",
+  // "invista em FII"). Asset list intentionally mirrors `FINANCIAL_TERMS` so a
+  // direct order on any tracked instrument fires.
+  {
+    name: 'imperative_asset',
+    re: /\b(compre|venda|invista|aplique|aporte|aloque|reserve|coloque|ponha)\s+(?:em\s+|por\s+)?\d*\s?%?\s*(bitcoin|btc|ethereum|eth|cripto(?:moedas?)?|crypto|d[óo]lar|euro|libra|ouro|prata|im[óo]vel|im[óo]veis|tesouro|cdb|lci|lca|cri|cra|deb[êe]nture|fii|etf|bdr|a[çc][õo]es?|a[çc][ãa]o|fundo|fundos)\b/i,
+  },
+  // P2 — imperative verb + percentage ("aloque 30%", "invista 50%"). Catches
+  // the "aloque X%" pattern even when the asset is not named.
+  {
+    name: 'imperative_percent',
+    re: /\b(aloque|aplique|coloque|ponha|reserve|invista|aporte)\s+\d{1,3}\s?%/i,
+  },
+  // P3 — explicit personal recommendation ("recomendo comprar Y", "sugiro
+  // investir em X"). 60-char window to allow short qualifiers.
+  {
+    name: 'explicit_recommend',
+    re: /\b(recomendo|sugiro|aconselho|indico)\b[^.!?\n]{0,60}\b(comprar|vender|investir|aplicar|aportar|alocar|adquirir)\b/i,
+  },
+  // P4 — "você deve(ria) comprar/vender/...". 2nd-person form is the giveaway
+  // — first-person ("eu devo comprar") in the user echo doesn't match.
+  {
+    name: 'you_should',
+    re: /\bvoc[êe]\s+(?:deve(?:ria)?|precisa|tem\s+que)\s+(comprar|vender|investir|aplicar|aportar|alocar|adquirir)\b/i,
+  },
+];
+
+export function detectDirectRecommendation(rawText: string): RecommendationDetection {
+  const text = rawText.normalize('NFC');
+  if (!text.trim()) return { violated: false, matches: [] };
+  const matches = RECOMMENDATION_PATTERNS.filter((p) => p.re.test(text)).map((p) => p.name);
+  return { violated: matches.length > 0, matches };
+}
+
 export function detectInvestmentIntent(rawQuery: string): GuardrailDecision {
   const query = rawQuery.normalize('NFC');
   if (!query.trim()) {

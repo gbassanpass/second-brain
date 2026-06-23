@@ -263,6 +263,99 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(lastUser).not.toContain('MODO EDUCACIONAL');
   });
 
+  it('post-filter: pass when the LLM reply has no direct recommendation', async () => {
+    llm = new FakeLLM({ reply: () => 'Antes de decidir, considere seu horizonte. [1]' });
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
+    });
+    const body = (await res.json()) as {
+      postFilter: { action: string; signals: string[] };
+    };
+    expect(body.postFilter.action).toBe('pass');
+    expect(body.postFilter.signals).toEqual([]);
+    expect(llm.calls).toHaveLength(1);
+  });
+
+  it('post-filter: regenerates once with REINFORCED preamble and returns the clean retry', async () => {
+    let n = 0;
+    llm = new FakeLLM({
+      reply: () => {
+        n++;
+        return n === 1
+          ? 'Compre Bitcoin agora — é a hora!'
+          : 'Antes de decidir, pondere seu horizonte e perfil. Conteúdo educativo; não é recomendação de investimento.';
+      },
+    });
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      content: string;
+      messageId: string;
+      guardrailFlag: string | null;
+      postFilter: { action: string; signals: string[] };
+      usage: { inputTokens: number; outputTokens: number };
+    };
+    expect(body.postFilter.action).toBe('regenerated');
+    expect(body.postFilter.signals).toContain('imperative_asset');
+    expect(body.content).not.toMatch(/\bCompre\b/i);
+    expect(body.content).toContain('Conteúdo educativo');
+    // Defense in depth: post-filter raises guardrailFlag even though the
+    // user query "eleições brasileiras" wouldn't trigger the pre-classifier.
+    expect(body.guardrailFlag).toBe('investment');
+
+    // Two LLM calls; the second one carries the REINFORCED preamble.
+    expect(llm.calls).toHaveLength(2);
+    const retryUser = llm.calls[1]?.messages.at(-1)?.content ?? '';
+    expect(retryUser).toContain('SUA RESPOSTA ANTERIOR foi REJEITADA');
+
+    // Usage + cost are summed across both attempts.
+    expect(body.usage.inputTokens).toBeGreaterThan(0);
+    expect(body.usage.outputTokens).toBeGreaterThan(0);
+
+    const db = getDb(DB_URL);
+    const [row] = await db
+      .select({ guardrailFlag: messages.guardrailFlag, content: messages.content })
+      .from(messages)
+      .where(eq(messages.id, body.messageId));
+    expect(row?.guardrailFlag).toBe('investment');
+    expect(row?.content).toBe(body.content);
+  });
+
+  it('post-filter: replaces with canned educational reply when BOTH attempts violate', async () => {
+    llm = new FakeLLM({
+      reply: () => 'Compre Bitcoin agora. Aloque 30% em FII.',
+    });
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      content: string;
+      guardrailFlag: string | null;
+      postFilter: { action: string; signals: string[] };
+    };
+    expect(body.postFilter.action).toBe('replaced');
+    expect(body.postFilter.signals).toEqual(
+      expect.arrayContaining(['imperative_asset', 'imperative_percent']),
+    );
+    expect(body.guardrailFlag).toBe('investment');
+    // Canned reply: no direct recommendation, ends with the CVM disclaimer.
+    expect(body.content).not.toMatch(/\b(Compre|Venda|Invista|Aloque)\b/);
+    expect(body.content).toContain('Conteúdo educativo; não é recomendação de investimento.');
+    expect(llm.calls).toHaveLength(2);
+  });
+
   it('routes to the fallback model for multi-question queries (and logs it)', async () => {
     llm = new FakeLLM();
     const app = buildApp();

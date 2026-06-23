@@ -49,6 +49,67 @@ export const EDUCATIONAL_MODE_PREAMBLE = [
 ].join('\n');
 
 /**
+ * Prepended on the regeneration attempt when the post-generation filter
+ * (E3.3) rejects the first reply. Stronger than `EDUCATIONAL_MODE_PREAMBLE`:
+ * names the specific violations and forbids the imperative shapes the post
+ * filter catches. Only used for retry — never on the first turn.
+ */
+export const REINFORCED_RETRY_PREAMBLE = [
+  '⚠️ SUA RESPOSTA ANTERIOR foi REJEITADA pelo filtro pós-geração.',
+  'Motivo: continha recomendação direta de compra, venda ou alocação.',
+  '',
+  'REESCREVA seguindo estas regras ESTRITAS:',
+  '- NÃO use imperativos do tipo "compre", "venda", "invista", "aplique",',
+  '  "aporte", "aloque" ou "reserve" seguidos de um ativo ou de uma porcentagem.',
+  '- NÃO escreva "você deve" / "você deveria" / "você precisa" antes de um',
+  '  verbo financeiro.',
+  '- NÃO use "recomendo" / "sugiro" / "aconselho" / "indico" antes de um',
+  '  verbo financeiro.',
+  '- Foque no cenário, nos riscos e nas perguntas que a pessoa deve se fazer',
+  '  antes de decidir (horizonte, perfil de risco, custos, alternativas, liquidez).',
+  '- Termine com: "Conteúdo educativo; não é recomendação de investimento."',
+].join('\n');
+
+/**
+ * Builds the regeneration `LLMCompleteArgs` from the original ones: keeps
+ * system/history intact (so prompt cache stays valid) and replaces only the
+ * last user message with the reinforced version. Caller has already detected
+ * a violation via `detectDirectRecommendation`.
+ */
+export function buildReinforcedRetryArgs(original: LLMCompleteArgs): LLMCompleteArgs {
+  const last = original.messages.at(-1);
+  if (!last || last.role !== 'user') {
+    throw new Error('buildReinforcedRetryArgs: expected last message to be a user message');
+  }
+  const reinforcedContent = `${REINFORCED_RETRY_PREAMBLE}\n\n${last.content}`;
+  return {
+    ...original,
+    messages: [...original.messages.slice(0, -1), { role: 'user', content: reinforcedContent }],
+  };
+}
+
+/**
+ * Canned educational reply used when the LLM still emits a direct
+ * recommendation after the regeneration attempt. Stays generic so it works
+ * for any creator persona — the disclaimer line is the one CVM-grade
+ * guarantee on this code path.
+ */
+export function buildSafeEducationalReply(personaName: string): string {
+  return [
+    `Não posso recomendar a compra, venda ou alocação específica de ativos no lugar de ${personaName}.`,
+    'Esta decisão depende do seu horizonte, perfil de risco, custos, alternativas e liquidez.',
+    '',
+    'Antes de decidir, pergunte-se:',
+    '- Qual é o seu horizonte (meses, anos, décadas)?',
+    '- Você está confortável com perdas no curto prazo?',
+    '- Já tem reserva de emergência fora desse ativo?',
+    '- Quais são as alternativas e seus custos (taxas, impostos, liquidez)?',
+    '',
+    'Conteúdo educativo; não é recomendação de investimento.',
+  ].join('\n');
+}
+
+/**
  * Stable per-creator system block — only the Persona Card drives it.
  * Identical across every chat turn so Anthropic prompt caching kicks in
  * (`cache_control: ephemeral`). Chunks + query stay out of this string by

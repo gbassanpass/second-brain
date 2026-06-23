@@ -7,10 +7,15 @@ import { estimateCostUsd, toNumericString } from '../rag/cost.js';
 import {
   type GuardrailDecision,
   type GuardrailFlag,
+  detectDirectRecommendation,
   detectInvestmentIntent,
 } from '../rag/guardrails.js';
 import type { PersonaCard } from '../rag/persona.js';
-import { buildLLMArgs } from '../rag/prompt.js';
+import {
+  buildLLMArgs,
+  buildReinforcedRetryArgs,
+  buildSafeEducationalReply,
+} from '../rag/prompt.js';
 import { retrieveAndRerank } from '../rag/retrieval.js';
 import { type RoutingDecision, type RoutingReason, pickModel } from '../rag/routing.js';
 import type { Reranker } from '../rerank/base.js';
@@ -54,6 +59,20 @@ export interface ChatSource {
   rank: number;
 }
 
+/**
+ * What the post-generation filter (E3.3) did to the reply.
+ *   - `pass`: first attempt was clean.
+ *   - `regenerated`: first attempt violated, second attempt passed.
+ *   - `replaced`: both attempts violated → canned educational reply served.
+ */
+export type PostFilterAction = 'pass' | 'regenerated' | 'replaced';
+
+export interface PostFilterDecision {
+  action: PostFilterAction;
+  /** Pattern names hit across attempts (e.g. ["imperative_asset","you_should"]). */
+  signals: string[];
+}
+
 export interface ProcessChatResult {
   conversationId: string;
   userMessageId: string;
@@ -63,6 +82,8 @@ export interface ProcessChatResult {
   guardrailFlag: GuardrailFlag;
   /** Confidence + signals from the guardrail classifier (debug/analytics). */
   guardrail: GuardrailDecision;
+  /** Post-generation filter decision (E3.3). */
+  postFilter: PostFilterDecision;
   fallback: 'no_context' | null;
   model: string;
   /** Why this model was picked (default vs fallback) — useful for analytics. */
@@ -173,6 +194,12 @@ export async function processChat(
     cfg,
   });
 
+  // Defense in depth: if the post-filter caught a recommendation the
+  // pre-classifier missed, still log the message as 'investment' so eval +
+  // analytics see it as a guardrail event.
+  const effectiveGuardrailFlag: GuardrailFlag =
+    guardrail.flag ?? (assistant.postFilter.action !== 'pass' ? 'investment' : null);
+
   const assistantInsert = await db
     .insert(messages)
     .values({
@@ -194,7 +221,7 @@ export async function processChat(
               rank: f.rank,
             }))
           : null,
-      guardrailFlag: guardrail.flag,
+      guardrailFlag: effectiveGuardrailFlag,
     })
     .returning({ id: messages.id });
   const assistantMessageId = assistantInsert[0]?.id;
@@ -208,8 +235,9 @@ export async function processChat(
     assistantMessageId,
     content: assistant.content,
     fontes: assistant.fontes,
-    guardrailFlag: guardrail.flag,
+    guardrailFlag: effectiveGuardrailFlag,
     guardrail,
+    postFilter: assistant.postFilter,
     fallback: assistant.fallback,
     model: assistant.model,
     routingReason: routing.reason,
@@ -296,6 +324,7 @@ interface AssistantTurnResult {
   usage: LLMUsage | null;
   costUsd: number;
   latencyMs: number;
+  postFilter: PostFilterDecision;
 }
 
 async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
@@ -308,6 +337,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       usage: null,
       costUsd: 0,
       latencyMs: 0,
+      postFilter: { action: 'pass', signals: [] },
     };
   }
 
@@ -338,20 +368,90 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
   });
 
   const start = Date.now();
-  const llmResult = await args.llm.complete(llmArgs);
-  const latencyMs = Date.now() - start;
+  const first = await args.llm.complete(llmArgs);
+  let latencyMs = Date.now() - start;
 
-  const costUsd = estimateCostUsd(llmResult.model || args.routing.model, llmResult.usage);
+  const firstDetection = detectDirectRecommendation(first.content);
+  if (!firstDetection.violated) {
+    return {
+      content: first.content,
+      fontes,
+      fallback: null,
+      model: first.model || args.routing.model,
+      usage: first.usage,
+      costUsd: estimateCostUsd(first.model || args.routing.model, first.usage),
+      latencyMs,
+      postFilter: { action: 'pass', signals: [] },
+    };
+  }
 
+  // Regenerate once with a reinforced preamble. The system prompt + history
+  // stay byte-identical so Anthropic prompt caching still pays.
+  console.warn(
+    `[chat] post-filter slug=${args.cfg.llmModel} action=regenerate ` +
+      `signals=${firstDetection.matches.join(',')}`,
+  );
+  const retryArgs = buildReinforcedRetryArgs(llmArgs);
+  const retryStart = Date.now();
+  const second = await args.llm.complete(retryArgs);
+  latencyMs += Date.now() - retryStart;
+
+  const totalUsage = sumUsage(first.usage, second.usage);
+  const totalCost =
+    estimateCostUsd(first.model || args.routing.model, first.usage) +
+    estimateCostUsd(second.model || args.routing.model, second.usage);
+  const model = second.model || first.model || args.routing.model;
+
+  const secondDetection = detectDirectRecommendation(second.content);
+  if (!secondDetection.violated) {
+    return {
+      content: second.content,
+      fontes,
+      fallback: null,
+      model,
+      usage: totalUsage,
+      costUsd: totalCost,
+      latencyMs,
+      postFilter: { action: 'regenerated', signals: firstDetection.matches },
+    };
+  }
+
+  console.error(
+    `[chat] post-filter action=replaced — both attempts violated. first=${firstDetection.matches.join(',')} second=${secondDetection.matches.join(',')}`,
+  );
   return {
-    content: llmResult.content,
+    content: buildSafeEducationalReply(args.persona.name),
     fontes,
     fallback: null,
-    model: llmResult.model || args.routing.model,
-    usage: llmResult.usage,
-    costUsd,
+    model,
+    usage: totalUsage,
+    costUsd: totalCost,
     latencyMs,
+    postFilter: {
+      action: 'replaced',
+      signals: Array.from(new Set([...firstDetection.matches, ...secondDetection.matches])),
+    },
   };
+}
+
+function sumUsage(a: LLMUsage | null, b: LLMUsage | null): LLMUsage | null {
+  if (!a && !b) return null;
+  const left = a ?? { inputTokens: 0, outputTokens: 0 };
+  const right = b ?? { inputTokens: 0, outputTokens: 0 };
+  return {
+    inputTokens: left.inputTokens + right.inputTokens,
+    outputTokens: left.outputTokens + right.outputTokens,
+    cacheReadInputTokens: addOptional(left.cacheReadInputTokens, right.cacheReadInputTokens),
+    cacheCreationInputTokens: addOptional(
+      left.cacheCreationInputTokens,
+      right.cacheCreationInputTokens,
+    ),
+  };
+}
+
+function addOptional(a: number | undefined, b: number | undefined): number | undefined {
+  if (a === undefined && b === undefined) return undefined;
+  return (a ?? 0) + (b ?? 0);
 }
 
 async function getDocumentTitles(db: Database, ids: string[]): Promise<Map<string, string | null>> {
