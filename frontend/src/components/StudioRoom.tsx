@@ -2,16 +2,21 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import {
+  type CreatorAnalytics,
   type DocumentSummary,
   type Me,
   type PersonaForm,
   type SourceSummary,
   canUseStudio,
+  fetchAnalytics,
   fetchDocuments,
   fetchMe,
   fetchPersonaForm,
   fetchSources,
   formToPersona,
+  formatLatency,
+  formatPercent,
+  formatUsd,
   personaFormError,
   savePersona,
 } from '../lib/studio';
@@ -37,6 +42,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
   const [form, setForm] = useState<PersonaForm>(EMPTY_FORM);
   const [sources, setSources] = useState<SourceSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [analytics, setAnalytics] = useState<CreatorAnalytics | null>(null);
 
   useEffect(() => {
     if (status === 'loading') {
@@ -58,15 +64,17 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
         return;
       }
       try {
-        const [persona, srcs, docs] = await Promise.all([
+        const [persona, srcs, docs, stats] = await Promise.all([
           fetchPersonaForm(slug, accessToken),
           fetchSources(slug, accessToken),
           fetchDocuments(slug, accessToken),
+          fetchAnalytics(slug, accessToken),
         ]);
         if (!active) return;
         setForm(persona);
         setSources(srcs);
         setDocuments(docs);
+        setAnalytics(stats);
         setPhase('ready');
       } catch {
         if (active) setPhase('error');
@@ -110,10 +118,54 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
         </a>
       </header>
 
+      {analytics ? <AnalyticsSection analytics={analytics} /> : null}
       <PersonaEditor slug={slug} token={accessToken} form={form} onChange={setForm} />
       <SourcesSection sources={sources} />
       <DocumentsSection documents={documents} />
     </main>
+  );
+}
+
+function AnalyticsSection({ analytics }: { analytics: CreatorAnalytics }) {
+  const cards = [
+    { label: 'Conversas', value: String(analytics.conversations) },
+    { label: 'Respostas', value: String(analytics.assistantMessages) },
+    { label: 'Custo total', value: formatUsd(analytics.totalCostUsd) },
+    { label: 'Custo / resposta', value: formatUsd(analytics.avgCostUsdPerAnswer) },
+    { label: 'Latência média', value: formatLatency(analytics.avgLatencyMs) },
+    { label: 'Taxa de guardrail', value: formatPercent(analytics.guardrailRate) },
+  ];
+  return (
+    <section className="flex flex-col gap-3">
+      <h2 className="text-lg font-semibold">Analytics</h2>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {cards.map((c) => (
+          <div
+            key={c.label}
+            className="rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3"
+          >
+            <p className="text-xs text-zinc-500">{c.label}</p>
+            <p className="mt-1 text-lg font-semibold text-zinc-100">{c.value}</p>
+          </div>
+        ))}
+      </div>
+      {analytics.topQuestions.length > 0 ? (
+        <div className="mt-2">
+          <p className="text-sm text-zinc-400">Perguntas mais frequentes</p>
+          <ol className="mt-2 flex flex-col gap-1">
+            {analytics.topQuestions.map((q) => (
+              <li
+                key={q.question}
+                className="flex items-center justify-between rounded-xl bg-bg-assistant px-3 py-2 text-sm text-zinc-200"
+              >
+                <span className="truncate pr-3">{q.question}</span>
+                <span className="shrink-0 text-xs text-zinc-500">{q.count}×</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

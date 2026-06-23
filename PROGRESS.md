@@ -7,10 +7,12 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E6 — Frontend MVP** (4/5 tarefas).
-- **Próxima tarefa:** **E6.5** — Analytics cards (`/studio`): nº de conversas, custo total/médio, perguntas top, taxa de guardrail. Dados já estão em `messages` (tokens/custo/guardrail_flag) — falta o endpoint de agregação + os cards. **Fim do épico E6 / da Fase 0.**
+- **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
+- **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 PhylloConnector (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
 - **Último commit:** `06e8d1b E6.4: Studio do criador (/studio/[slug])`.
-- **Testes:** 326 verdes em 38 arquivos. Lint + typecheck verdes.
+- **Testes:** 331 verdes em 39 arquivos. Lint + typecheck verdes.
+
+> 🎉 **Definition of Done da Fase 0 atingida**: Fausto indexado (5 docs/10 chunks); chat cita fontes; guardrail de investimento verde no eval (E4); login + paywall + checkout funcionando; **custo medido ~US$0,0036/resposta** (analytics E6.5, bem abaixo do alvo US$0,05); toda conversa logada em `messages`.
 
 > ✅ **Follow-up E5.2 fechado no E6.3**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` (slug resolvido do body via `resolveSlug` async; userId vem do JWT, creatorId do `access`). Os 13 testes de chat foram atualizados p/ provisionar subscriber+assinatura ativa e mandar JWT (+2 testes novos: 401 sem JWT, 402 sem assinatura).
 > 🟡 **Follow-ups visuais E6.2**: (1) **markdown** — respostas vêm em markdown mas a UI renderiza texto puro (`whitespace-pre-wrap`); (2) **streaming** — backend `/api/chat` é não-streaming, UI usa "pensando". Polimento, não bloqueiam aceite.
@@ -108,6 +110,13 @@ Studio do criador `/studio/[slug]` pronto, gated a creator/operator. **Verificad
 - **Follow-ups**: lockdown de `POST /:slug/documents` + `POST /sources/:id/sync` (usados por tooling de ingestão — gatear exige token no CLI); "conectar fontes" via UI é F1.1 (Phyllo).
 - **Testes**: 10 novos (3 studio-api + 1 persona-auth backend + 6 `lib/studio` frontend). **Total 326 verdes em 38 arquivos.** `next build` limpo (8 rotas + 7 proxies).
 
+## Marco do E6.5 (referência rápida)
+
+Analytics cards no Studio prontos. **Verificado contra dados reais do fausto**: 10 conversas, 10 respostas, custo total US$0,036, **~US$0,0036/resposta** (DoD < US$0,05 ✅), latência média 7,7s, taxa de guardrail 40%, top-5 perguntas rankeadas.
+- **Backend** `services/analytics.ts::getCreatorAnalytics(db, creatorId)`: deriva tudo de `messages` + `conversations`. Aggregates via `count() filter (where ...)` por papel, `sum(cost_usd)`, `avg(latency_ms)` (só assistant), guardrail = `count filter guardrail_flag='investment'`. `topQuestions` agrupa user turns por `content` (desc, limit 5). Endpoint gated `GET /api/creators/:slug/analytics` (studioGate creator/operator).
+- **Frontend**: `lib/studio.ts` ganha `fetchAnalytics` + formatters puros (`formatUsd` mais preciso < US$0,10, `formatPercent`, `formatLatency` ms/s/—). `StudioRoom` renderiza `AnalyticsSection` (grid de 6 cards + lista de perguntas frequentes) no topo. Proxy `/api/creators/[slug]/analytics`.
+- **Testes**: 5 novos (2 analytics-api: gating 401/403 + aggregação com fixtures cost/guardrail/top; 3 formatters em `lib/studio`). **Total 331 verdes em 39 arquivos.** `next build` limpo.
+
 ## ▶️ Roteiro de retomada padrão
 
 1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
@@ -160,7 +169,7 @@ Studio do criador `/studio/[slug]` pronto, gated a creator/operator. **Verificad
 - [x] **E6.2** Chat `/c/[slug]/chat` (estilo ChatGPT) — ver marco abaixo.
 - [x] **E6.3** Login (Supabase) + auth no `/api/chat` + paywall + checkout — ver marco abaixo.
 - [x] **E6.4** Studio `/studio/[slug]` (persona editor + fontes/conteúdo + testar clone, gated) — ver marco abaixo.
-- [ ] E6.5 Analytics cards
+- [x] **E6.5** Analytics cards (`GET /api/creators/:slug/analytics` + cards no Studio) — ver marco abaixo.
 
 ## Decisões consolidadas (não revisitar sem motivo forte)
 

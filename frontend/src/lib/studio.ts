@@ -39,6 +39,40 @@ export interface DocumentSummary {
   createdAt: string;
 }
 
+export interface TopQuestion {
+  question: string;
+  count: number;
+}
+
+export interface CreatorAnalytics {
+  conversations: number;
+  totalMessages: number;
+  userMessages: number;
+  assistantMessages: number;
+  totalCostUsd: number;
+  avgCostUsdPerAnswer: number;
+  avgLatencyMs: number | null;
+  guardrailInvestmentCount: number;
+  guardrailRate: number;
+  topQuestions: TopQuestion[];
+}
+
+/** USD with enough precision to show sub-cent per-answer costs. */
+export function formatUsd(value: number): string {
+  return `US$ ${value.toFixed(value < 0.1 ? 4 : 2)}`;
+}
+
+/** Fraction in [0,1] → percent string. */
+export function formatPercent(fraction: number): string {
+  return `${(fraction * 100).toFixed(0)}%`;
+}
+
+/** Milliseconds → "1.2s" / "850ms"; "—" when there's no data. */
+export function formatLatency(ms: number | null): string {
+  if (ms == null) return '—';
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`;
+}
+
 /** A creator/operator may use the Studio; subscribers may not. */
 export function canUseStudio(role: string | undefined): boolean {
   return role === 'creator' || role === 'operator';
@@ -171,4 +205,15 @@ export async function fetchDocuments(
   });
   if (!res.ok) throw new Error(`documents load failed: ${res.status}`);
   return ((await res.json()) as { documents: DocumentSummary[] }).documents;
+}
+
+export async function fetchAnalytics(
+  slug: string,
+  token: string | null,
+): Promise<CreatorAnalytics> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/analytics`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`analytics load failed: ${res.status}`);
+  return (await res.json()) as CreatorAnalytics;
 }

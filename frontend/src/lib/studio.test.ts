@@ -4,6 +4,9 @@ import {
   type PersonaForm,
   canUseStudio,
   formToPersona,
+  formatLatency,
+  formatPercent,
+  formatUsd,
   personaFormError,
   personaToForm,
 } from './studio';
@@ -70,5 +73,21 @@ describe('personaFormError', () => {
     expect(personaFormError({ ...base, name: '  ' })).toMatch(/nome/i);
     expect(personaFormError({ ...base, one_liner: '' })).toMatch(/uma linha/i);
     expect(personaFormError({ ...base, voice: '\n' })).toMatch(/voz/i);
+  });
+});
+
+describe('analytics formatters', () => {
+  it('formatUsd shows more precision for sub-cent values', () => {
+    expect(formatUsd(0.0008)).toBe('US$ 0.0008');
+    expect(formatUsd(12.5)).toBe('US$ 12.50');
+  });
+  it('formatPercent rounds to whole percent', () => {
+    expect(formatPercent(1 / 3)).toBe('33%');
+    expect(formatPercent(0)).toBe('0%');
+  });
+  it('formatLatency switches unit and handles null', () => {
+    expect(formatLatency(850)).toBe('850ms');
+    expect(formatLatency(2000)).toBe('2.0s');
+    expect(formatLatency(null)).toBe('—');
   });
 });

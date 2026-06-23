@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
 import { personaCardSchema } from '../rag/persona.js';
+import { getCreatorAnalytics } from '../services/analytics.js';
 import { getPublicCreator, listDocuments, listSources } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
@@ -63,6 +64,13 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     const creatorId = await resolveCreatorId(c.req.param('slug'));
     if (!creatorId) return c.json({ error: 'creator_not_found' }, 404);
     return c.json({ documents: await listDocuments(getDb(), creatorId) });
+  });
+
+  // Studio analytics (E6.5): conversations, cost, top questions, guardrail rate.
+  router.get('/:slug/analytics', ...studioGate, async (c) => {
+    const creatorId = await resolveCreatorId(c.req.param('slug'));
+    if (!creatorId) return c.json({ error: 'creator_not_found' }, 404);
+    return c.json(await getCreatorAnalytics(getDb(), creatorId));
   });
 
   router.post('/:slug/documents', async (c) => {
