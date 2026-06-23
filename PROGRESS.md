@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E0 — Scaffolding & infra** (2/4 tarefas concluídas).
-- **Próxima tarefa:** **E0.3** — Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env obrigatória + fakes em modo `test`.
-- **Último commit:** `4c258e1 E0.2: smoke completo + checkbox`.
+- **Épico atual:** **E0 — Scaffolding & infra** (3/4 tarefas concluídas).
+- **Próxima tarefa:** **E0.4** — Adapters (`llm/`, `embeddings/`, `rerank/`, `transcription/`) + `connectors/` (interface `ContentConnector` + `ManualUploadConnector`), com implementação real + fake para cada um.
+- **Último commit:** `E0.3: config tipada Zod + boot fail-fast + fakes em modo test`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -35,7 +35,7 @@ Tudo da infra de DB está em pé e testado:
 ### E0 — Scaffolding & infra
 - [x] **E0.1** Monorepo pnpm (backend Hono + frontend Next.js + Biome + Vitest + Makefile + healthcheck).
 - [x] **E0.2** Supabase CLI + Drizzle schema (tabelas/índices do doc 04) + bucket de Storage.
-- [ ] **E0.3** Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env.
+- [x] **E0.3** Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env.
 - [ ] **E0.4** Adapters (llm/embeddings/rerank/transcription + connectors `ManualUpload`) com fakes para testes.
 
 ### E1 — Ingestão & second brain (pendente)
