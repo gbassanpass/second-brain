@@ -10,8 +10,7 @@
 - **Épico atual:** **E5 — Auth, paywall e billing** (2/3 tarefas).
 - **Próxima tarefa:** **E5.3** — Webhook idempotente de billing (`POST /api/billing/webhook`); cria/atualiza `subscriptions` (Stripe MVP).
 - **Último commit:** `975b9e6 E5.2: middleware requireAccess (paywall) + GET /api/c/:slug/access`.
-
-> 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `GET /api/c/:slug/access` (pré-flight do frontend). Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
+- **Testes:** 261 verdes em 29 arquivos. Lint + typecheck verdes.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -41,6 +40,20 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - **Biome `noRestrictedImports`** bloqueia SDKs (`@anthropic-ai/sdk`, `openai`, `cohere-ai`, `@deepgram/sdk`, `assemblyai`, `elevenlabs`, `stripe`) fora dos diretórios de adapter (`llm/`, `embeddings/`, `rerank/`, `transcription/`, `voice/`, `billing/`).
 - Testes: 51 (config 7 + llm 8 + embeddings 9 + rerank 7 + transcription 9 + connectors 8 + health 2 + frontend smoke 1).
 
+## Marco do E5.1 + E5.2 (referência rápida)
+
+Auth (Supabase) + paywall prontos:
+- **Trigger DB**: `auth.users` AFTER INSERT → `public.users` (external_id, email, role='subscriber'), idempotente. Migration `0002_auth_trigger.sql`.
+- **JWT verify**: `backend/src/auth/jwt.ts::verifySupabaseJWT` HS256 com `node:crypto` (zero dep). `SUPABASE_JWT_SECRET` no Zod config.
+- **Middlewares**: `requireAuth` (401 sem/inválido) e `requireAccess` (402 paywall com payload checkout). Operator/creator bypassam paywall.
+- **Rotas demo**:
+  - `GET /api/me` — protegida por `requireAuth`. Retorna `{id, externalId, email, role}` do usuário logado.
+  - `GET /api/c/:slug/access` — protegida por `requireAuth + requireAccess`. Retorna `{allowed, creatorId, reason, subscriptionId}` ou 402 com payload de checkout.
+- **Subscription "ativa"**: `status ∈ {active, trialing}` AND (`current_period_end IS NULL` OR > now).
+- **Testes**: 261 no total (29 arquivos). E5 contribui 29 (jwt unit 7, me-api integração 6, checkAccess unit 8, access-api integração 7, ajustes config 1).
+
+> 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `/api/c/:slug/access`. Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
+
 ## ▶️ Roteiro de retomada padrão
 
 1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
@@ -61,10 +74,9 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E1.2** `POST /api/creators/:slug/documents` + `make ingest-fausto` (sha256 do raw_text; UNIQUE creator_id+content_hash garante idempotência).
 - [x] **E1.3** Chunker (~400 tokens, overlap ~15%, fallback word-window) + `indexDocument` (Embedder injetado, delete+insert idempotente, tsv via trigger) + smoke `EXPLAIN ANALYZE` mostrando `Index Scan using chunks_embedding_hnsw_idx`.
 - [x] **E1.4** Worker BullMQ (`backend/src/workers/ingest.ts`) + `POST /api/sources/:id/sync` + `syncContentSource` (pending → indexing → indexed, idempotente).
+- [ ] E1.5 (opcional MVP) Transcrição
 
 > Em test, embeddings fake são default. Em dev, exige `OPENAI_API_KEY` com acesso a `text-embedding-3-small` no projeto OpenAI. Para `make worker` o Redis precisa estar de pé (`make up`).
-- [x] **E1.4** Worker BullMQ + `POST /api/sources/:id/sync`
-- [ ] E1.5 (opcional MVP) Transcrição
 
 ### E2 — Núcleo RAG
 - [x] **E2.1** Busca híbrida (vetorial + tsvector + RRF) — `backend/src/rag/retrieval.ts::hybridSearch`
@@ -73,11 +85,6 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E2.4** Prompt builders — `buildSystemPrompt(card)` estável (cacheável), `buildUserPrompt({query, chunks})` numerado, `buildLLMArgs` com `cacheSystemPrompt: true`. Smoke real com Haiku 4.5 retorna resposta citando [1]. ⚠️ Persona atual (~500 tokens) está abaixo do mínimo de cache do Anthropic (Haiku 2048; Sonnet 1024) — wiring correto mas cache só ativa quando persona/few-shots crescerem.
 - [x] **E2.5** Orquestrador `POST /api/chat` — `services/chat.ts::processChat` faz query → embed → retrieveAndRerank → (LLM | fallback `no_context`) → persiste user+assistant em `messages` com model/tokens/costUsd/latencyMs/retrievedChunks. `rag/cost.ts` aplica pricing Anthropic com modificadores de cache (10% read, 125% write).
 - [x] **E2.6** Roteamento Haiku ↔ Sonnet — `rag/routing.ts::pickModel` aplica heurísticas (`long_query` > 280 chars, `multi_question` > 1 `?`, `low_retrieval_confidence` top score < 0.3, ou `forced_*` via env `LLM_ROUTING_FORCE`). Loga cada decisão com signals; `routingReason` no response e em `messages.model`.
-- [ ] E2.2 Rerank Cohere
-- [ ] E2.3 Persona Card (modelo + seed Fausto + endpoint)
-- [ ] E2.4 Prompt + caching
-- [ ] E2.5 Orquestrador `POST /api/chat`
-- [ ] E2.6 Roteamento Haiku/Sonnet
 
 ### E3 — Guardrails (BLOQUEANTE)
 - [x] **E3.1** Classificador anti-investimento — `rag/guardrails.ts::detectInvestmentIntent` com 8 action patterns + 7 financial-term groups; high/medium/low confidence; `messages.guardrail_flag='investment'` persistido no DB.
