@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E2 — Núcleo RAG** (3/6 tarefas).
-- **Próxima tarefa:** **E2.4** — Montagem de prompt + system prompt com prompt caching da Persona Card (Anthropic `cache_control: ephemeral`).
-- **Último commit:** `E2.3: Persona Card (schema + service + GET/PUT + seed do Fausto)`.
+- **Épico atual:** **E2 — Núcleo RAG** (4/6 tarefas).
+- **Próxima tarefa:** **E2.5** — Orquestrador `POST /api/chat`: query → embedding → retrieveAndRerank → persona → LLM → resposta + persistir tudo em `messages`.
+- **Último commit:** `E2.4: prompt builders + cache_control ephemeral (smoke real com Haiku 4.5)`.
 
 > ✅ **Conteúdo do Fausto indexado**: 5 transcripts → 10 chunks com embeddings OpenAI reais (`text-embedding-3-small`, 1536-d). Smoke `retrieval-smoke fausto "Bolsonaro"` retorna ordem semanticamente sã com legs vetorial + textual fundidas via RRF.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
@@ -66,6 +66,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E2.1** Busca híbrida (vetorial + tsvector + RRF) — `backend/src/rag/retrieval.ts::hybridSearch`
 - [x] **E2.2** Rerank top-50 → top-N + threshold + fallback `"no_context"` — `retrieveAndRerank` em `retrieval.ts`
 - [x] **E2.3** Persona Card — schema Zod (`rag/persona.ts`), service `getPersonaCard`/`setPersonaCard`, rotas `GET|PUT /api/creators/:slug/persona`, seed do Fausto via `make seed` (idempotente; `SEED_FORCE_PERSONA=1` sobrescreve).
+- [x] **E2.4** Prompt builders — `buildSystemPrompt(card)` estável (cacheável), `buildUserPrompt({query, chunks})` numerado, `buildLLMArgs` com `cacheSystemPrompt: true`. Smoke real com Haiku 4.5 retorna resposta citando [1]. ⚠️ Persona atual (~500 tokens) está abaixo do mínimo de cache do Anthropic (Haiku 2048; Sonnet 1024) — wiring correto mas cache só ativa quando persona/few-shots crescerem.
 - [ ] E2.2 Rerank Cohere
 - [ ] E2.3 Persona Card (modelo + seed Fausto + endpoint)
 - [ ] E2.4 Prompt + caching

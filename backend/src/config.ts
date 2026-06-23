@@ -56,8 +56,8 @@ function buildSchema(isTest: boolean) {
     REDIS_URL: requiredAtBoot('REDIS_URL'),
 
     LLM_PROVIDER: z.enum(['anthropic', 'fake']).default(isTest ? 'fake' : 'anthropic'),
-    LLM_DEFAULT_MODEL: z.string().min(1).default('claude-haiku'),
-    LLM_FALLBACK_MODEL: z.string().min(1).default('claude-sonnet'),
+    LLM_DEFAULT_MODEL: z.string().min(1).default('claude-haiku-4-5'),
+    LLM_FALLBACK_MODEL: z.string().min(1).default('claude-sonnet-4-6'),
     ANTHROPIC_API_KEY: optionalProvider('ANTHROPIC_API_KEY'),
 
     EMBEDDINGS_PROVIDER: z.enum(['openai', 'fake']).default(isTest ? 'fake' : 'openai'),
