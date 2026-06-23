@@ -53,8 +53,8 @@ migrate: ## Aplica migrations no Supabase (usa DATABASE_URL_DIRECT)
 migrate-gen: ## Gera migration a partir do schema Drizzle
 	pnpm --filter @second-brain/backend db:generate
 
-seed: ## Cria criador 'fausto' + Persona Card + buckets de Storage
-	@echo "[seed] implementado no E0.2/E1"
+seed: ## Cria criador 'fausto' + manual source + Persona Card (idempotente)
+	pnpm --filter @second-brain/backend seed
 
 eval: ## Roda o harness de avaliação do RAG (golden questions)
 	@echo "[eval] implementado no E4"

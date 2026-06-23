@@ -33,7 +33,7 @@
   - *Aceite:* função `hybrid_search(creator_id, query)` retorna candidatos rankeados; testada com fixtures.
 - [x] **E2.2** Rerank (Cohere) top-50 → top-5 com limiar de score.
   - *Aceite:* abaixo do limiar retorna vazio → caminho "não tenho isso registrado".
-- [ ] **E2.3** Persona Card: modelo, seed do Fausto (doc 05), endpoint GET/PUT.
+- [x] **E2.3** Persona Card: modelo, seed do Fausto (doc 05), endpoint GET/PUT.
 - [ ] **E2.4** Montagem de prompt + system prompt com prompt caching da Persona Card.
   - *Aceite:* chamadas reusam o bloco cacheado; custo de entrada cai (verificar nos logs).
 - [ ] **E2.5** Orquestrador de resposta: query→retrieval→rerank→LLM→resposta + persistência completa em `messages` (tokens, custo, latência, fontes).

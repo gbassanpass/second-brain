@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E2 — Núcleo RAG** (2/6 tarefas).
-- **Próxima tarefa:** **E2.3** — Persona Card (modelo + seed do Fausto + endpoint GET/PUT).
-- **Último commit:** `E2.2: retrieveAndRerank + threshold + no_context fallback`.
+- **Épico atual:** **E2 — Núcleo RAG** (3/6 tarefas).
+- **Próxima tarefa:** **E2.4** — Montagem de prompt + system prompt com prompt caching da Persona Card (Anthropic `cache_control: ephemeral`).
+- **Último commit:** `E2.3: Persona Card (schema + service + GET/PUT + seed do Fausto)`.
 
 > ✅ **Conteúdo do Fausto indexado**: 5 transcripts → 10 chunks com embeddings OpenAI reais (`text-embedding-3-small`, 1536-d). Smoke `retrieval-smoke fausto "Bolsonaro"` retorna ordem semanticamente sã com legs vetorial + textual fundidas via RRF.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
@@ -65,6 +65,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 ### E2 — Núcleo RAG
 - [x] **E2.1** Busca híbrida (vetorial + tsvector + RRF) — `backend/src/rag/retrieval.ts::hybridSearch`
 - [x] **E2.2** Rerank top-50 → top-N + threshold + fallback `"no_context"` — `retrieveAndRerank` em `retrieval.ts`
+- [x] **E2.3** Persona Card — schema Zod (`rag/persona.ts`), service `getPersonaCard`/`setPersonaCard`, rotas `GET|PUT /api/creators/:slug/persona`, seed do Fausto via `make seed` (idempotente; `SEED_FORCE_PERSONA=1` sobrescreve).
 - [ ] E2.2 Rerank Cohere
 - [ ] E2.3 Persona Card (modelo + seed Fausto + endpoint)
 - [ ] E2.4 Prompt + caching

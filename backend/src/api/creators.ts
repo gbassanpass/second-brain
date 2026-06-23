@@ -4,7 +4,9 @@ import { z } from 'zod';
 import type { Database } from '../db/client.js';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
+import { personaCardSchema } from '../rag/persona.js';
 import { upsertDocument } from '../services/documents.js';
+import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 
 const createDocumentBody = z.object({
   rawText: z.string().min(1),
@@ -54,6 +56,39 @@ export function createCreatorsRouter(getDb: () => Database): Hono {
       },
       result.created ? 201 : 200,
     );
+  });
+
+  router.get('/:slug/persona', async (c) => {
+    const slug = c.req.param('slug');
+    const db = getDb();
+    const [creator] = await db
+      .select({ id: creators.id })
+      .from(creators)
+      .where(eq(creators.slug, slug))
+      .limit(1);
+    if (!creator) {
+      return c.json({ error: 'creator_not_found', slug }, 404);
+    }
+    const card = await getPersonaCard(db, slug);
+    if (!card) {
+      return c.json({ error: 'persona_not_set', slug }, 404);
+    }
+    return c.json({ slug, personaCard: card });
+  });
+
+  router.put('/:slug/persona', async (c) => {
+    const slug = c.req.param('slug');
+    const json = await c.req.json().catch(() => null);
+    const parsed = personaCardSchema.safeParse(json);
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+    }
+    const db = getDb();
+    const result = await setPersonaCard(db, slug, parsed.data);
+    if ('error' in result) {
+      return c.json({ error: result.error, slug }, 404);
+    }
+    return c.json({ slug, personaCard: result.card });
   });
 
   return router;

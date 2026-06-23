@@ -15,6 +15,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "ingest-fausto": "tsx src/scripts/ingest-fausto.ts",
+    "seed": "tsx src/scripts/seed.ts",
     "retrieval-smoke": "tsx src/scripts/retrieval-smoke.ts",
     "worker:ingest": "tsx src/scripts/worker-ingest.ts",
     "worker:ingest:watch": "tsx watch src/scripts/worker-ingest.ts"
