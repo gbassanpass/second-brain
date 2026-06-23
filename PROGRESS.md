@@ -9,7 +9,13 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E0 — Scaffolding & infra**.
 - **Próxima tarefa:** **E0.2** — Supabase CLI + Drizzle ORM + schema do `docs/04-data-model.md` + bucket de Storage.
-- **Último commit:** `6b222d9 E0.1: bootstrap monorepo (Hono + Next.js + Biome + Vitest)`.
+- **Último commit:** `d9efdfb docs: add PROGRESS.md and refresh README`.
+
+## ⛔ Bloqueios atuais
+
+- **E0.2 aguarda Docker Desktop rodando.** `supabase start` precisa do Docker (sobe Postgres + Auth + Storage locais). Supabase CLI 2.107 já está instalado.
+  - **Ação do usuário:** instalar [Docker Desktop](https://www.docker.com/products/docker-desktop/), abrir, esperar o ícone ficar verde (status "Engine running") e me avisar.
+  - Ao retomar: confirmar com `docker info --format '{{.ServerVersion}}'` (qualquer versão impressa = OK). Daí o Claude pode tocar o E0.2 ponta a ponta com smoke completo.
 
 ## Checklist da Fase 0
 
