@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP** (2/5 tarefas).
 - **Próxima tarefa:** **E6.3** — Paywall/checkout: tela de oferta no lugar do composer quando sem assinatura + retorno validando assinatura (usa o 402 do `requireAccess` + o webhook do E5.3). Provavelmente junto com a **tela de login** (Supabase Auth) — que destrava o follow-up de auth do chat.
-- **Último commit:** `54ee99c E6.1: landing pública do clone (/c/[slug])`.
+- **Último commit:** `e41e7a2 E6.2: chat /c/[slug]/chat estilo ChatGPT (UI)`.
 - **Testes:** 305 verdes em 35 arquivos. Lint + typecheck verdes.
 
 > ⚠️ **Decisão de escopo E6.2 (auth adiada)**: o chat consome `POST /api/chat` **sem enforcement** porque ainda não há tela de login (E5.1 só fez o backend de JWT). O follow-up "wirear `requireAuth + requireAccess` no `POST /api/chat`" segue **aberto** — fazer junto com a tela de login (E6.3). Assim os 13 testes de chat continuam verdes e o chat funciona end-to-end já.
