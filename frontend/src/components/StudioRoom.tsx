@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { generatePersona, importInstagram, parseInstagramHandle } from '../lib/onboarding';
 import {
   type CreatorAnalytics,
   type DocumentSummary,
@@ -21,6 +22,17 @@ import {
   savePersona,
 } from '../lib/studio';
 import { useSession } from '../lib/useSession';
+
+type Section = 'insights' | 'conversations' | 'audience' | 'knowledge' | 'profile' | 'train';
+
+const NAV: { id: Section; label: string; icon: string }[] = [
+  { id: 'insights', label: 'Insights', icon: '📈' },
+  { id: 'conversations', label: 'Conversas', icon: '💬' },
+  { id: 'audience', label: 'Audiência', icon: '👥' },
+  { id: 'knowledge', label: 'Conhecimento', icon: '🧠' },
+  { id: 'profile', label: 'Persona', icon: '🪪' },
+  { id: 'train', label: 'Treinar', icon: '🎯' },
+];
 
 const EMPTY_FORM: PersonaForm = {
   name: '',
@@ -43,6 +55,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
   const [sources, setSources] = useState<SourceSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [analytics, setAnalytics] = useState<CreatorAnalytics | null>(null);
+  const [section, setSection] = useState<Section>('insights');
 
   useEffect(() => {
     if (status === 'loading') {
@@ -104,25 +117,207 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
   if (phase === 'error') return <Centered>Não consegui carregar os dados do Studio.</Centered>;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-10 px-6 py-10">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Studio · {displayName}</h1>
-          <p className="text-xs uppercase tracking-wide text-zinc-500">painel do criador</p>
+    <div className="flex min-h-screen bg-bg text-zinc-100">
+      {/* Sidebar nav (estilo Delphi) */}
+      <aside className="flex w-56 shrink-0 flex-col border-zinc-800 border-r bg-bg-sidebar px-3 py-4">
+        <div className="flex items-center gap-2 px-2 pb-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-gold text-sm font-semibold text-accent">
+            {displayName.slice(0, 1).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold">{displayName}</p>
+            <p className="text-[10px] uppercase tracking-wide text-zinc-500">painel do criador</p>
+          </div>
         </div>
+        <nav className="flex flex-col gap-1">
+          {NAV.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              onClick={() => setSection(n.id)}
+              className={`flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition ${
+                section === n.id
+                  ? 'bg-bg-assistant text-zinc-100'
+                  : 'text-zinc-400 hover:text-zinc-100'
+              }`}
+            >
+              <span aria-hidden>{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
         <a
           href={`/c/${slug}/chat`}
-          className="rounded-2xl bg-accent-gold px-4 py-2 text-sm font-semibold text-accent transition hover:opacity-90"
+          className="mt-auto rounded-xl bg-accent-gold px-3 py-2 text-center text-sm font-semibold text-accent transition hover:opacity-90"
         >
           Testar o clone
         </a>
-      </header>
+      </aside>
 
-      {analytics ? <AnalyticsSection analytics={analytics} /> : null}
-      <PersonaEditor slug={slug} token={accessToken} form={form} onChange={setForm} />
+      {/* Conteúdo da seção */}
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-10">
+          <h1 className="text-2xl font-semibold">{NAV.find((n) => n.id === section)?.label}</h1>
+
+          {section === 'insights' &&
+            (analytics ? (
+              <AnalyticsSection analytics={analytics} />
+            ) : (
+              <Empty>Sem dados ainda.</Empty>
+            ))}
+
+          {section === 'profile' && (
+            <ProfileSection slug={slug} token={accessToken} form={form} onChange={setForm} />
+          )}
+
+          {section === 'knowledge' && (
+            <KnowledgeSection
+              slug={slug}
+              token={accessToken}
+              sources={sources}
+              documents={documents}
+            />
+          )}
+
+          {section === 'conversations' && (
+            <Empty>
+              Em breve: o histórico de conversas que fizeram com {displayName} aparece aqui.
+            </Empty>
+          )}
+
+          {section === 'audience' && (
+            <Empty>
+              Em breve: gerencie quem fala com seu clone — liberar por e-mail, código de acesso ou
+              link de pagamento.
+            </Empty>
+          )}
+
+          {section === 'train' && (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-zinc-400">
+                Converse com seu clone e calibre as respostas. (O loop de "essa resposta soa como
+                você?" chega em breve.)
+              </p>
+              <a
+                href={`/c/${slug}/chat`}
+                className="w-fit rounded-2xl bg-accent-gold px-5 py-2.5 text-sm font-semibold text-accent transition hover:opacity-90"
+              >
+                Abrir o chat de treino
+              </a>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function ProfileSection({
+  slug,
+  token,
+  form,
+  onChange,
+}: {
+  slug: string;
+  token: string | null;
+  form: PersonaForm;
+  onChange: (f: PersonaForm) => void;
+}) {
+  const [genBusy, setGenBusy] = useState(false);
+  const [genMsg, setGenMsg] = useState<string | null>(null);
+  async function regen() {
+    setGenBusy(true);
+    setGenMsg(null);
+    const ok = await generatePersona(slug, token);
+    setGenBusy(false);
+    setGenMsg(ok ? 'Persona regenerada — recarregue para ver.' : 'Falha ao gerar (há conteúdo?).');
+  }
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-zinc-400">
+          Edite a voz do clone, ou gere a partir do conteúdo importado.
+        </p>
+        <button
+          type="button"
+          onClick={regen}
+          disabled={genBusy}
+          className="rounded-xl border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-accent-gold disabled:opacity-40"
+        >
+          {genBusy ? 'Gerando…' : 'Gerar do conteúdo'}
+        </button>
+      </div>
+      {genMsg ? <p className="text-xs text-accent-gold">{genMsg}</p> : null}
+      <PersonaEditor slug={slug} token={token} form={form} onChange={onChange} />
+    </div>
+  );
+}
+
+function KnowledgeSection({
+  slug,
+  token,
+  sources,
+  documents,
+}: {
+  slug: string;
+  token: string | null;
+  sources: SourceSummary[];
+  documents: DocumentSummary[];
+}) {
+  const [handle, setHandle] = useState('');
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function connect() {
+    const h = parseInstagramHandle(handle);
+    if (!h) {
+      setMsg('Informe uma URL ou @ do Instagram válido.');
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await importInstagram(slug, h, token);
+      setMsg('Importando em segundo plano — o status aparece em Fontes em instantes.');
+      setHandle('');
+    } catch {
+      setMsg('Não consegui iniciar a importação.');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="rounded-2xl border border-zinc-700 bg-bg-assistant p-4">
+        <p className="text-sm font-medium">Conectar Instagram</p>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            placeholder="https://www.instagram.com/seuperfil"
+            className="flex-1 rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={connect}
+            disabled={busy || !handle.trim()}
+            className="rounded-xl bg-accent-gold px-4 py-2 text-sm font-semibold text-accent transition hover:opacity-90 disabled:opacity-40"
+          >
+            {busy ? 'Importando…' : 'Importar'}
+          </button>
+        </div>
+        {msg ? <p className="mt-2 text-xs text-zinc-400">{msg}</p> : null}
+      </div>
       <SourcesSection sources={sources} />
       <DocumentsSection documents={documents} />
-    </main>
+    </div>
+  );
+}
+
+function Empty({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-bg-sidebar px-6 py-10 text-center text-sm text-zinc-400">
+      {children}
+    </div>
   );
 }
 
