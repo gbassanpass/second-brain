@@ -3,7 +3,9 @@ import { config as loadEnv } from 'dotenv';
 import { ConfigError, getConfig } from '../config.js';
 import { ManualUploadConnector } from '../connectors/manual.js';
 import { closeDb, getDb } from '../db/client.js';
+import { createEmbedder } from '../embeddings/factory.js';
 import { ensureCreatorBySlug, upsertDocument } from '../services/documents.js';
+import { ensureDocumentIndexed } from '../services/indexing.js';
 
 // .env lives at the monorepo root (../../../ from this file).
 loadEnv({ path: new URL('../../../.env', import.meta.url).pathname });
@@ -36,16 +38,22 @@ async function main() {
     throw err;
   }
 
-  console.info(`[ingest] slug=${slug} baseDir=${baseDir} env=${config.APP_ENV}`);
+  console.info(
+    `[ingest] slug=${slug} baseDir=${baseDir} env=${config.APP_ENV} embeddings=${config.EMBEDDINGS_PROVIDER}`,
+  );
 
   const db = getDb();
+  const embedder = createEmbedder(config);
   const creator = await ensureCreatorBySlug(db, slug, displayName);
 
   const connector = new ManualUploadConnector({ baseDir });
 
   let total = 0;
-  let created = 0;
-  let duplicate = 0;
+  let docInserted = 0;
+  let docDuplicate = 0;
+  let docIndexed = 0;
+  let docAlreadyIndexed = 0;
+  let chunksCreated = 0;
   const start = Date.now();
 
   for await (const raw of connector.list(creator.id)) {
@@ -58,13 +66,25 @@ async function main() {
       url: raw.url,
       publishedAt: raw.publishedAt,
     });
-    if (res.created) created++;
-    else duplicate++;
+    if (res.created) docInserted++;
+    else docDuplicate++;
+
+    const indexed = await ensureDocumentIndexed(db, embedder, {
+      creatorId: creator.id,
+      documentId: res.document.id,
+      rawText: raw.rawText,
+    });
+    if (indexed.skipped) docAlreadyIndexed++;
+    else {
+      docIndexed++;
+      chunksCreated += indexed.chunkCount;
+    }
   }
 
   const elapsed = ((Date.now() - start) / 1000).toFixed(2);
   console.info(
-    `[ingest] done in ${elapsed}s — total=${total} inserted=${created} duplicate=${duplicate}`,
+    `[ingest] done in ${elapsed}s — docs total=${total} inserted=${docInserted} duplicate=${docDuplicate}; ` +
+      `indexed now=${docIndexed} already=${docAlreadyIndexed}; chunks created=${chunksCreated}`,
   );
 }
 
