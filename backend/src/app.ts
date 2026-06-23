@@ -1,19 +1,48 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
+import { type ChatRouterDeps, createChatRouter } from './api/chat.js';
 import { createCreatorsRouter } from './api/creators.js';
 import { health } from './api/health.js';
 import { type EnqueueSyncFn, createSourcesRouter } from './api/sources.js';
+import { getConfig } from './config.js';
 import type { Database } from './db/client.js';
 import { getDb as getDbReal } from './db/client.js';
+import { createEmbedder } from './embeddings/factory.js';
+import { createLLMClient } from './llm/factory.js';
+import { createReranker } from './rerank/factory.js';
+import type { ChatServices } from './services/chat.js';
 import { enqueueIngestSync } from './workers/queue.js';
 
 const defaultEnqueueSync: EnqueueSyncFn = (sourceId) => enqueueIngestSync(sourceId);
+
+const defaultGetChatServices: () => ChatServices = () => {
+  const config = getConfig();
+  return {
+    embedder: createEmbedder(config),
+    reranker: createReranker(config),
+    llm: createLLMClient(config),
+  };
+};
+
+const defaultGetChatConfig: ChatRouterDeps['getConfig'] = () => {
+  const c = getConfig();
+  return {
+    LLM_DEFAULT_MODEL: c.LLM_DEFAULT_MODEL,
+    MAX_TOKENS_PER_REPLY: c.MAX_TOKENS_PER_REPLY,
+    RETRIEVAL_TOP_K: c.RETRIEVAL_TOP_K,
+    RERANK_SCORE_THRESHOLD: c.RERANK_SCORE_THRESHOLD,
+  };
+};
 
 export interface AppDeps {
   /** Lazy DB accessor — called only when a route needs the database. Default: `getDb()` from db/client.js. */
   getDb?: () => Database;
   /** Lazy BullMQ enqueue — called only by `POST /api/sources/:id/sync`. */
   enqueueSync?: EnqueueSyncFn;
+  /** Lazy chat services (embedder/reranker/llm) — called only by `POST /api/chat`. */
+  getChatServices?: () => ChatServices;
+  /** Lazy chat-related config — called only by `POST /api/chat`. */
+  getChatConfig?: ChatRouterDeps['getConfig'];
 }
 
 export function createApp(deps: AppDeps = {}) {
@@ -25,6 +54,14 @@ export function createApp(deps: AppDeps = {}) {
   app.route('/api/health', health);
   app.route('/api/creators', createCreatorsRouter(getDb));
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
+  app.route(
+    '/api/chat',
+    createChatRouter({
+      getDb,
+      getServices: deps.getChatServices ?? defaultGetChatServices,
+      getConfig: deps.getChatConfig ?? defaultGetChatConfig,
+    }),
+  );
 
   app.notFound((c) => c.json({ error: 'not_found' }, 404));
 

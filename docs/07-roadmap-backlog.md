@@ -36,7 +36,7 @@
 - [x] **E2.3** Persona Card: modelo, seed do Fausto (doc 05), endpoint GET/PUT.
 - [x] **E2.4** Montagem de prompt + system prompt com prompt caching da Persona Card.
   - *Aceite:* chamadas reusam o bloco cacheado; custo de entrada cai (verificar nos logs).
-- [ ] **E2.5** Orquestrador de resposta: query→retrieval→rerank→LLM→resposta + persistência completa em `messages` (tokens, custo, latência, fontes).
+- [x] **E2.5** Orquestrador de resposta: query→retrieval→rerank→LLM→resposta + persistência completa em `messages` (tokens, custo, latência, fontes).
   - *Aceite:* `POST /api/chat` responde citando fontes; `messages` preenchida.
 - [ ] **E2.6** Roteamento de modelo por complexidade (Haiku default, Sonnet fallback).
   - *Aceite:* perguntas simples usam Haiku; logs mostram o roteamento.
