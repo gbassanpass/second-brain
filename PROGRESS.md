@@ -7,9 +7,15 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E1 — Ingestão & second brain** (3/5 tarefas).
-- **Próxima tarefa:** **E1.4** — Worker BullMQ de ingestão (processo separado), com status em `content_sources` (`pending → indexing → indexed`); `POST /sources/{id}/sync` enfileira.
-- **Último commit:** `e5c08c5 E1.3: chunker + indexDocument + HNSW EXPLAIN`.
+- **Épico atual:** **E1 — Ingestão & second brain** (4/5 tarefas; E1.5 transcrição é opcional no MVP).
+- **Próxima tarefa:** **E2.1** — Busca híbrida (vetorial + textual + RRF). E1.5 (transcrição) fica de fora do MVP.
+- **Último commit:** `E1.4: BullMQ worker + POST /sources/:id/sync`.
+
+> 📌 **Bloqueio externo (não-código):** projeto OpenAI sem acesso ao
+> `text-embedding-3-small`. Liberar em
+> `platform.openai.com → Project Settings → Limits → Model permissions`
+> e rodar `make ingest-fausto` para reindexar os 5 transcripts já
+> upsertados (chunks vazios; idempotência cuida de não duplicar docs).
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -54,10 +60,11 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E1.1** Schema Drizzle + tipos Zod (`backend/src/db/types.ts` via `drizzle-zod`, enums de domínio, schema do `retrieved_chunks`).
 - [x] **E1.2** `POST /api/creators/:slug/documents` + `make ingest-fausto` (sha256 do raw_text; UNIQUE creator_id+content_hash garante idempotência).
 - [x] **E1.3** Chunker (~400 tokens, overlap ~15%, fallback word-window) + `indexDocument` (Embedder injetado, delete+insert idempotente, tsv via trigger) + smoke `EXPLAIN ANALYZE` mostrando `Index Scan using chunks_embedding_hnsw_idx`.
+- [x] **E1.4** Worker BullMQ (`backend/src/workers/ingest.ts`) + `POST /api/sources/:id/sync` + `syncContentSource` (pending → indexing → indexed, idempotente).
 
-> `make ingest-fausto` em dev exige `EMBEDDINGS_PROVIDER=fake` enquanto não houver `OPENAI_API_KEY` no `.env`. Em test, o fake já é o default.
-- [ ] E1.4 Worker BullMQ
-- [ ] E1.5 (opcional) Transcrição
+> Em test, embeddings fake são default. Em dev, exige `OPENAI_API_KEY` com acesso a `text-embedding-3-small` no projeto OpenAI. Para `make worker` o Redis precisa estar de pé (`make up`).
+- [x] **E1.4** Worker BullMQ + `POST /api/sources/:id/sync`
+- [ ] E1.5 (opcional MVP) Transcrição
 
 ### E2 — Núcleo RAG (pendente)
 - [ ] E2.1 Busca híbrida (vetorial + BM25 + RRF)

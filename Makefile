@@ -9,7 +9,7 @@ export PATH := /opt/homebrew/bin:/usr/local/bin:$(PATH)
 
 COMPOSE := docker compose -f infra/docker-compose.yml
 
-.PHONY: help up down dev test lint format typecheck migrate migrate-gen seed eval ingest-fausto clean
+.PHONY: help up down dev worker test lint format typecheck migrate migrate-gen seed eval ingest-fausto clean
 
 help: ## Lista os alvos disponíveis
 	@awk 'BEGIN {FS = ":.*##"; printf "\nAlvos disponíveis:\n"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -31,6 +31,9 @@ down: ## Para Redis + Supabase
 
 dev: ## Backend + frontend em watch
 	pnpm dev
+
+worker: ## Worker BullMQ de ingestão (em watch)
+	pnpm --filter @second-brain/backend worker:ingest:watch
 
 test: ## Roda todos os testes (backend + frontend)
 	pnpm test

@@ -14,10 +14,13 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "ingest-fausto": "tsx src/scripts/ingest-fausto.ts"
+    "ingest-fausto": "tsx src/scripts/ingest-fausto.ts",
+    "worker:ingest": "tsx src/scripts/worker-ingest.ts",
+    "worker:ingest:watch": "tsx watch src/scripts/worker-ingest.ts"
   },
   "dependencies": {
     "@hono/node-server": "1.13.7",
+    "bullmq": "^5.79.1",
     "dotenv": "16.4.5",
     "drizzle-orm": "0.36.4",
     "drizzle-zod": "0.5.1",

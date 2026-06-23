@@ -23,7 +23,7 @@
   - *Aceite:* arquivos em `data/fausto/` viram `documents` com `content_hash` (sha256 do `raw_text`); reprocessar não duplica (UNIQUE `creator_id, content_hash`).
 - [x] **E1.3** Pipeline de chunking (300–500 tokens, overlap 15%) + embeddings (`Embedder` adapter) + `tsvector('portuguese')` populado por trigger.
   - *Aceite:* `chunks` populados com `embedding` e `tsv`; índice HNSW em uso (`EXPLAIN (ANALYZE)` mostra `Index Scan using chunks_embedding_idx`); contagem de chunks bate com fixtures.
-- [ ] **E1.4** Worker BullMQ de ingestão (processo separado em `backend/src/workers/ingest.ts`) com status em `content_sources`.
+- [x] **E1.4** Worker BullMQ de ingestão (processo separado em `backend/src/workers/ingest.ts`) com status em `content_sources`.
   - *Aceite:* `POST /sources/{id}/sync` enfileira job; status vai `pending → indexing → indexed`; idempotente (rodar 2x não duplica chunks).
 - [ ] **E1.5** (Opcional MVP) Transcrição de áudio/vídeo via `Transcriber` adapter (Deepgram).
   - *Aceite:* arquivo de áudio PT em `data/fausto/audio/` vira transcript em `documents` (`kind='transcript'`).
