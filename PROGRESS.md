@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual concluído:** **E0 — Scaffolding & infra** (4/4 tarefas) ✅. Pronto para revisão antes de iniciar E1.
-- **Próximo épico:** **E1 — Ingestão & second brain**. Próxima tarefa: **E1.1** (Schema Drizzle + tipos Zod com `drizzle-zod`).
-- **Último commit:** `5ca15c2 E0.4: adapters (LLM/embeddings/rerank/transcription) + ManualUploadConnector`.
+- **Épico atual:** **E1 — Ingestão & second brain** (1/5 tarefas).
+- **Próxima tarefa:** **E1.2** — `ManualUploadConnector` → endpoint `POST /api/creators/{slug}/documents` + `make ingest-fausto` (content_hash garante idempotência).
+- **Último commit:** `E1.1: drizzle-zod schemas + tipos por tabela`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -50,9 +50,9 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E0.3** Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env.
 - [x] **E0.4** Adapters (llm/embeddings/rerank/transcription + connectors `ManualUpload`) com fakes para testes.
 
-### E1 — Ingestão & second brain (pendente)
-- [ ] E1.1 Schema Drizzle + tipos Zod
-- [ ] E1.2 `POST /documents` + `make ingest-fausto`
+### E1 — Ingestão & second brain
+- [x] **E1.1** Schema Drizzle + tipos Zod (`backend/src/db/types.ts` via `drizzle-zod`, enums de domínio, schema do `retrieved_chunks`).
+- [ ] **E1.2** `POST /documents` + `make ingest-fausto`
 - [ ] E1.3 Chunking + embeddings + tsvector
 - [ ] E1.4 Worker BullMQ
 - [ ] E1.5 (opcional) Transcrição

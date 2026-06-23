@@ -17,7 +17,7 @@
   - *Aceite:* trocar provedor é mudar 1 env/factory; testes do RAG (E2) usam fakes determinísticos; chamar SDK fora do adapter quebra o lint (regra do Biome / convenção revisada em PR).
 
 ### Épico E1 — Ingestão & second brain
-- [ ] **E1.1** Schema Drizzle (`backend/src/db/schema.ts`) + tipos Zod para input/output de cada tabela do doc 04 (publicados como `backend/src/db/types.ts`).
+- [x] **E1.1** Schema Drizzle (`backend/src/db/schema.ts`) + tipos Zod para input/output de cada tabela do doc 04 (publicados como `backend/src/db/types.ts`).
   - *Aceite:* `pnpm test` valida que cada tabela tem schema Zod de insert/select; tipos derivados via `drizzle-zod`.
 - [ ] **E1.2** Ingestão manual de conteúdo via `ContentConnector` (`ManualUploadConnector` lê `data/fausto/`) + endpoint `POST /api/creators/{slug}/documents`. Comando `make ingest-fausto` aciona o connector.
   - *Aceite:* arquivos em `data/fausto/` viram `documents` com `content_hash` (sha256 do `raw_text`); reprocessar não duplica (UNIQUE `creator_id, content_hash`).
