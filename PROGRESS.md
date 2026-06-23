@@ -7,9 +7,11 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E5 — Auth, paywall e billing** (1/3 tarefas).
-- **Próxima tarefa:** **E5.2** — Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
-- **Último commit:** `323e7e6 E5.1: Supabase Auth — trigger on_auth_user_created + middleware requireAuth + GET /api/me`.
+- **Épico atual:** **E5 — Auth, paywall e billing** (2/3 tarefas).
+- **Próxima tarefa:** **E5.3** — Webhook idempotente de billing (`POST /api/billing/webhook`); cria/atualiza `subscriptions` (Stripe MVP).
+- **Último commit:** `b94c645 docs(progress): record E5.1 commit hash`.
+
+> 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `GET /api/c/:slug/access` (pré-flight do frontend). Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -89,7 +91,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 
 ### E5 — Auth, paywall, billing
 - [x] **E5.1** Supabase Auth + trigger `on_auth_user_created` — migration `0002_auth_trigger.sql` cria `handle_new_auth_user()` (SECURITY DEFINER, search_path=public) + trigger AFTER INSERT em `auth.users` que insere em `public.users(external_id=NEW.id::text, email, role='subscriber')` com `ON CONFLICT (external_id) DO NOTHING`. `backend/src/auth/jwt.ts::verifySupabaseJWT` faz HMAC-SHA256 com `node:crypto` (zero dep), valida alg=HS256/sub/exp/assinatura. Middleware `requireAuth` (`api/middleware/require-auth.ts`) lê `Authorization: Bearer`, verifica JWT, faz look-up em `public.users` por `external_id`, seta `c.set('user', AuthenticatedUser)`. Rota demo `GET /api/me` protegida retorna `{id, externalId, email, role}`. `SUPABASE_JWT_SECRET` no Zod config. 14 testes novos: 7 unit do JWT verify (round-trip, bad signature, expired, malformed, alg=none, missing sub) + 6 integração (trigger replica auth→public, 401s pra header faltando/malformed/sig inválida/user não-provisionado, 200 com sub válido).
-- [ ] E5.2 Middleware `requireAccess`
+- [x] **E5.2** Middleware `requireAccess` — `services/access.ts::checkAccess` puro: operator/creator passam direto; subscriber precisa de `subscriptions` row com status `active`|`trialing` AND `current_period_end > now` (nulo conta como sem expiração). `api/middleware/require-access.ts::requireAccess` Hono middleware: lê `c.get('user')` (precisa do `requireAuth` antes), resolve slug → creator, chama checkAccess. 402 com `{error:'payment_required', reason, creatorId, creatorSlug, checkout:{url:null, message}}`. Rota demo `GET /api/c/:slug/access` (pré-flight pro frontend). 15 testes novos: 8 unit em checkAccess (operator, creator, active, trialing, no_sub, canceled, expired period, clock injection) + 7 integração na rota (401 sem JWT, 404 slug inválido, 402 no_sub, 402 expired, 200 active, 200 operator/creator bypass).
 - [ ] E5.3 Webhook idempotente de billing
 
 ### E6 — Frontend MVP (pendente)

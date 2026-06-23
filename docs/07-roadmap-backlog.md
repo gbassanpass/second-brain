@@ -57,7 +57,7 @@
 ### Épico E5 — Auth, paywall e billing
 - [x] **E5.1** Integração **Supabase Auth** (e-mail/magic link + OAuth Google); trigger `on_auth_user_created` replica para `public.users` com `external_id = auth.users.id` e `role` default `subscriber`. Middleware Hono valida JWT do Supabase e injeta `user` no contexto.
   - *Aceite:* signup pelo frontend cria linha em `public.users`; chamadas sem JWT recebem 401; JWT inválido recebe 401.
-- [ ] **E5.2** Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
+- [x] **E5.2** Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
   - *Aceite:* assinante ativo passa; sem assinatura recebe 402 com payload de checkout; criador/operador sempre passa.
 - [ ] **E5.3** Webhook de billing idempotente (`POST /api/billing/webhook`) cria/atualiza `subscriptions` (Stripe no MVP; Hotmart/Kiwify por trás da mesma interface).
   - *Aceite:* assinatura de teste libera acesso; cancelamento bloqueia; reprocessar o mesmo evento (mesmo `external_id`) não duplica.

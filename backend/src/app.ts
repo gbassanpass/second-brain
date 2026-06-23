@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
+import { createAccessRouter } from './api/access.js';
 import { type ChatRouterDeps, createChatRouter } from './api/chat.js';
 import { createCreatorsRouter } from './api/creators.js';
 import { health } from './api/health.js';
@@ -63,6 +64,7 @@ export function createApp(deps: AppDeps = {}) {
   app.route('/api/creators', createCreatorsRouter(getDb));
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
   app.route('/api/me', createMeRouter({ getDb, jwtSecret }));
+  app.route('/api/c', createAccessRouter({ getDb, jwtSecret }));
   app.route(
     '/api/chat',
     createChatRouter({
