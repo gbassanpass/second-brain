@@ -9,8 +9,16 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
 - **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 PhylloConnector (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
-- **Último commit:** `b774fd3 E6.5: analytics cards no Studio — fecha a Fase 0`.
-- **Testes:** 331 verdes em 39 arquivos. Lint + typecheck verdes.
+- **Último commit:** `ddc195d fix(auth/eval): ES256 JWT via JWKS, eval ESM, Cohere 429 backoff`.
+- **Testes:** 338 verdes em 39 arquivos. Lint + typecheck verdes.
+
+> 🔑 **Como logar/testar localmente (verificado 2026-06-23)** — detalhes em memória `local_testing.md`:
+> - **Usuário de teste** (Supabase local, conta descartável — NÃO é segredo de prod): `criador@fausto.local` / senha `fausto123`, papel **operator** (vê chat + Studio e fura o paywall). Recriar se o volume for resetado: `POST 127.0.0.1:54321/auth/v1/admin/users` com `apikey`+`Bearer`=`SUPABASE_SERVICE_ROLE_KEY` e `{"email","password","email_confirm":true}`, depois `UPDATE public.users SET role='operator' WHERE email='criador@fausto.local';`.
+> - **Login:** use **e-mail+senha** em `/login` (botão "Entrar") — determinístico. Magic link é frágil (allowlist + hash de uso único).
+> - **Supabase:** reiniciar sempre via `cd infra && supabase start --ignore-health-check` (project-id `supabase`; storage/studio podem ficar unhealthy e não importam). Acessar tudo por **localhost** (sessão é por origem).
+> - **JWT é ES256/JWKS** (não HS256). Backend verifica os dois (`verifySupabaseToken`).
+
+> 🔧 **Correções pós-Fase 0 (commit `ddc195d`)**: (1) login real estava 401 — Supabase assina **ES256**, backend só fazia HS256; agora faz os dois via JWKS. (2) `make eval` quebrado (CJS/ESM) → `eval/package.json` ESM. (3) Cohere 429 no eval → retry/backoff no reranker. (4) login page ganhou e-mail+senha. (5) `config.toml` liberou redirect p/ `127.0.0.1:3000/**`.
 
 > 🎉 **Definition of Done da Fase 0 atingida**: Fausto indexado (5 docs/10 chunks); chat cita fontes; guardrail de investimento verde no eval (E4); login + paywall + checkout funcionando; **custo medido ~US$0,0036/resposta** (analytics E6.5, bem abaixo do alvo US$0,05); toda conversa logada em `messages`.
 
