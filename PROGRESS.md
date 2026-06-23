@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E0 — Scaffolding & infra** (3/4 tarefas concluídas).
 - **Próxima tarefa:** **E0.4** — Adapters (`llm/`, `embeddings/`, `rerank/`, `transcription/`) + `connectors/` (interface `ContentConnector` + `ManualUploadConnector`), com implementação real + fake para cada um.
-- **Último commit:** `E0.3: config tipada Zod + boot fail-fast + fakes em modo test`.
+- **Último commit:** `cc6a65e E0.3: config tipada Zod + boot fail-fast + fakes em modo test`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
