@@ -4,6 +4,11 @@ import { conversations, creators, documents, messages } from '../db/schema.js';
 import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient, LLMMessage, LLMUsage } from '../llm/base.js';
 import { estimateCostUsd, toNumericString } from '../rag/cost.js';
+import {
+  type GuardrailDecision,
+  type GuardrailFlag,
+  detectInvestmentIntent,
+} from '../rag/guardrails.js';
 import type { PersonaCard } from '../rag/persona.js';
 import { buildLLMArgs } from '../rag/prompt.js';
 import { retrieveAndRerank } from '../rag/retrieval.js';
@@ -55,7 +60,9 @@ export interface ProcessChatResult {
   assistantMessageId: string;
   content: string;
   fontes: ChatSource[];
-  guardrailFlag: string | null;
+  guardrailFlag: GuardrailFlag;
+  /** Confidence + signals from the guardrail classifier (debug/analytics). */
+  guardrail: GuardrailDecision;
   fallback: 'no_context' | null;
   model: string;
   /** Why this model was picked (default vs fallback) — useful for analytics. */
@@ -92,6 +99,16 @@ export async function processChat(
   const persona = await getPersonaCard(db, input.creatorSlug);
   if (!persona) {
     throw new Error(`processChat: persona not set for ${input.creatorSlug}`);
+  }
+
+  // Stage-1 guardrail (rules) — runs before any spend. E3.2 will use the
+  // flag to force educational mode; E3.3 adds the post-gen filter.
+  const guardrail = detectInvestmentIntent(input.query);
+  if (guardrail.flag) {
+    console.info(
+      `[chat] guardrail slug=${input.creatorSlug} flag=${guardrail.flag} ` +
+        `confidence=${guardrail.confidence} signals=${guardrail.signals.join(',')}`,
+    );
   }
 
   const conversationId = await ensureConversation(db, {
@@ -176,7 +193,7 @@ export async function processChat(
               rank: f.rank,
             }))
           : null,
-      guardrailFlag: null,
+      guardrailFlag: guardrail.flag,
     })
     .returning({ id: messages.id });
   const assistantMessageId = assistantInsert[0]?.id;
@@ -190,7 +207,8 @@ export async function processChat(
     assistantMessageId,
     content: assistant.content,
     fontes: assistant.fontes,
-    guardrailFlag: null,
+    guardrailFlag: guardrail.flag,
+    guardrail,
     fallback: assistant.fallback,
     model: assistant.model,
     routingReason: routing.reason,

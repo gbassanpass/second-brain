@@ -215,6 +215,47 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(llm.calls[0]?.system).toBe(llm.calls[1]?.system);
   });
 
+  it('flags investment intent and persists guardrail_flag on the assistant message', async () => {
+    llm = new FakeLLM();
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        creatorSlug: slug,
+        query: 'Que cripto eu devo comprar agora?',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      messageId: string;
+      guardrailFlag: string | null;
+      guardrail: { flag: string | null; confidence: string; signals: string[] };
+    };
+    expect(body.guardrailFlag).toBe('investment');
+    expect(body.guardrail.confidence).toBe('high');
+    expect(body.guardrail.signals.some((s) => s.startsWith('action:'))).toBe(true);
+
+    const db = getDb(DB_URL);
+    const [row] = await db
+      .select({ guardrailFlag: messages.guardrailFlag })
+      .from(messages)
+      .where(eq(messages.id, body.messageId));
+    expect(row?.guardrailFlag).toBe('investment');
+  });
+
+  it('does not flag a non-financial query (guardrailFlag stays null)', async () => {
+    llm = new FakeLLM();
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'O que ele pensa sobre eleições?' }),
+    });
+    const body = (await res.json()) as { guardrailFlag: string | null };
+    expect(body.guardrailFlag).toBeNull();
+  });
+
   it('routes to the fallback model for multi-question queries (and logs it)', async () => {
     llm = new FakeLLM();
     const app = buildApp();

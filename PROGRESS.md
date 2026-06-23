@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual concluído:** **E2 — Núcleo RAG** (6/6) ✅. Pronto para revisão antes de iniciar E3.
-- **Próximo épico:** **E3 — Guardrails (BLOQUEANTE)**. Próxima tarefa: **E3.1** (classificador anti-investimento na entrada).
-- **Último commit:** `E2.6: pickModel routing (Haiku ↔ Sonnet) + logs`.
+- **Épico atual:** **E3 — Guardrails (BLOQUEANTE)** (1/4 tarefas).
+- **Próxima tarefa:** **E3.2** — Modo educacional forçado + disclaimer quando guardrail_flag=investment.
+- **Último commit:** `E3.1: detectInvestmentIntent + integração no chat`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -77,8 +77,8 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [ ] E2.5 Orquestrador `POST /api/chat`
 - [ ] E2.6 Roteamento Haiku/Sonnet
 
-### E3 — Guardrails (BLOQUEANTE) (pendente)
-- [ ] E3.1 Classificador anti-investimento
+### E3 — Guardrails (BLOQUEANTE)
+- [x] **E3.1** Classificador anti-investimento — `rag/guardrails.ts::detectInvestmentIntent` com 8 action patterns + 7 financial-term groups; high/medium/low confidence; `messages.guardrail_flag='investment'` persistido no DB.
 - [ ] E3.2 Modo educacional + disclaimer
 - [ ] E3.3 Filtro pós-geração
 - [ ] E3.4 Anti-alucinação + tom neutro

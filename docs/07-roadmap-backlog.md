@@ -42,7 +42,7 @@
   - *Aceite:* perguntas simples usam Haiku; logs mostram o roteamento.
 
 ### Épico E3 — Guardrails (BLOQUEANTE para lançar)
-- [ ] **E3.1** Classificador de intenção de investimento (regras + LLM barato) na entrada.
+- [x] **E3.1** Classificador de intenção de investimento (regras + LLM barato) na entrada.
   - *Aceite:* perguntas tipo "que cripto comprar" são detectadas (cobertura validada no eval).
 - [ ] **E3.2** Modo educacional forçado + disclaimer quando detectado; `guardrail_flag='investment'`.
 - [ ] **E3.3** Filtro pós-geração que bloqueia recomendação direta ("compre/venda/aloque X%").
