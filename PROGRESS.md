@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP** (4/5 tarefas).
 - **Próxima tarefa:** **E6.5** — Analytics cards (`/studio`): nº de conversas, custo total/médio, perguntas top, taxa de guardrail. Dados já estão em `messages` (tokens/custo/guardrail_flag) — falta o endpoint de agregação + os cards. **Fim do épico E6 / da Fase 0.**
-- **Último commit:** `a3444a4 E6.3: login (Supabase) + auth no chat + paywall + checkout`.
+- **Último commit:** `06e8d1b E6.4: Studio do criador (/studio/[slug])`.
 - **Testes:** 326 verdes em 38 arquivos. Lint + typecheck verdes.
 
 > ✅ **Follow-up E5.2 fechado no E6.3**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` (slug resolvido do body via `resolveSlug` async; userId vem do JWT, creatorId do `access`). Os 13 testes de chat foram atualizados p/ provisionar subscriber+assinatura ativa e mandar JWT (+2 testes novos: 401 sem JWT, 402 sem assinatura).
