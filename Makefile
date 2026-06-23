@@ -29,8 +29,11 @@ down: ## Para Redis + Supabase
 	fi
 	$(COMPOSE) down
 
-dev: ## Backend + frontend em watch
-	pnpm dev
+dev: ## Backend + frontend + worker de ingestão (watch)
+	@echo "[dev] backend + frontend + worker de ingestão (Ctrl-C encerra tudo)"
+	@trap 'kill 0' EXIT; \
+		pnpm --filter @second-brain/backend worker:ingest:watch & \
+		pnpm dev
 
 worker: ## Worker BullMQ de ingestão (em watch)
 	pnpm --filter @second-brain/backend worker:ingest:watch

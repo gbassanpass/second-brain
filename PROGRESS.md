@@ -10,7 +10,10 @@
 - **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
 - **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 apify (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
 - **Último commit:** `946c452 feat(auth): signup self-service + funil visitante→criador`.
-- **Marca:** **falacomigo.ai** (UI). **Testes:** 354 verdes (322 backend + 32 frontend). Lint + typecheck verdes.
+- **Marca:** **falacomigo.ai** (UI). **Testes:** 355 verdes (323 backend + 32 frontend). Lint + typecheck verdes.
+
+> ✅ **Pipeline de background (worker) GARANTIDO** (verificado real, 2026-06-23): import de IG agora é **assíncrono** — `POST .../sources/instagram` enfileira (202 em ~15ms) e o worker BullMQ faz scrape→index→**gera a persona**, sem prender o onboarding. Provado: clone novo → 6 posts reais do @faustobassan → persona auto-gerada (~15s) → chat respondeu em 1ª pessoa citando fontes. **`make dev` agora sobe o worker junto** (antes era `make worker` à parte; sem worker, imports ficam em `pending`).
+> 🎯 **Próximo: Studio estilo Delphi (F1.16 shell + features).** Backlog reconciliado com as telas do Delphi em `docs/07` (mapa + ordem). Ordem: **F1.16 shell (menu lateral)** → F1.12 train → F1.13 conversations → F1.9 add knowledge → F1.3 voz → F1.17 acesso → F1.14/F1.18.
 
 > ✅ **F1.11 — Instagram por handle VALIDADO COM DADOS REAIS** (token Apify no `.env`): `@faustobassan` → **8 posts reais** (Groenlândia/Trump, eleições 2026, EUA×Irã, agricultura BR…) → docs+chunks indexados em ~16s; o chat respondeu "Por que Trump quer anexar a Groenlândia?" citando o post do IG `[1]`. Stack: scraper `backend/src/scrapers/` (`ApifyInstagramScraper` run-sync-get-dataset-items + `FakeInstagramScraper`) → `InstagramConnector` (ContentConnector) → reusa `syncContentSource`. Endpoint gated `POST /api/creators/:slug/sources/instagram {handle,limit?}`. Config: `SCRAPER_PROVIDER`/`APIFY_TOKEN`/`APIFY_INSTAGRAM_ACTOR`/`INSTAGRAM_RESULTS_LIMIT`. Markdown do chat também renderiza (react-markdown).
 > ✅ **Fase 1 — onboarding/produto (self-signup) PRONTO E VERIFICADO.** Fluxo estilo Delphi: criar clone do zero → conectar Instagram → importa → conversar.

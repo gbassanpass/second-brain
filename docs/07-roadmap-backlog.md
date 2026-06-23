@@ -76,14 +76,12 @@
 ---
 
 ## FASE 1 — Produtizar (1–3 criadores)
-- [ ] **F1.1** Onboarding semi-automático: implementar `PhylloConnector` (adapter da interface `ContentConnector` criada no E0.4) cobrindo Instagram + YouTube + TikTok via OAuth do Phyllo + webhook de novo conteúdo + transcrição automática. Pré-requisito: criador com conta Business/Creator no IG. Ver `docs/12-connectors.md`.
-  - *Reavaliar ordem:* o **F1.10 (YouTubeConnector público, sem OAuth)** entrega 80% do valor do "colar URL e puxar" sem a fricção do Phyllo. Considerar F1.10 antes de F1.1. Phyllo segue necessário pra IG/TikTok robustos (ver F1.11).
 - [ ] **F1.2** Consentimento (tabela `consents`) no onboarding: conteúdo, voz, imagem (upload de contrato). Regra "só clone de si mesmo" + verificação de identidade.
 - [ ] **F1.3** Voz: adaptador ElevenLabs (PVC); resposta falada opcional; gate por plano Pro. (Prioridade alta — voz retém ~5x mais; doc 10.)
 - [ ] **F1.4** Canal WhatsApp/Telegram (webhook → mesmo pipeline).
 - [ ] **F1.5** Multi-criador real no Studio (cada criador só vê seus dados).
 - [ ] **F1.6** **Interview mode** (doc 10): gerar perguntas direcionadas a partir das lacunas da persona; respostas viram `documents` de alta confiança e atualizam a Persona Card.
-- [ ] **F1.7** Política de uso + aviso "você fala com a mente digital" visível na UI; bloquear categorias proibidas (políticos, conteúdo adulto).
+- [ ] **F1.7** Política de uso + aviso "você fala com a mente digital" visível na UI; bloquear categorias proibidas (conteúdo adulto).
 - [ ] **F1.8** **Enrichment pipeline (Delphi-style)** — antes de embedar, o chunker chama Haiku para gerar (a) um sumário curto do chunk + (b) 3-5 perguntas hipotéticas que aquele chunk responde. Tudo é embedado: o chunk original, o sumário e cada pergunta (mesmo `chunk_id`, novo `chunks.enriched_kind ∈ {raw, summary, question}`). `hybridSearch` retorna o melhor row por `chunk_id` (dedup) — o LLM continua vendo só o `text` raw.
   - *Por quê:* transcrições de reel têm muito ruído oral; perguntas pré-geradas casam melhor com a query do usuário (similaridade pergunta↔pergunta > pergunta↔fala bruta). É a "Additional Context" do diagrama do case study Pinecone/Delphi.
   - *Custo:* Haiku ~US$0,0005 por chunk × 10 chunks do Fausto = ~US$0,005 pra reindexar do zero.
@@ -100,6 +98,13 @@
 - [ ] **F1.13** **Lista de conversas do criador no Studio** — aba "Conversations" (Me / Minha audiência) com histórico navegável. Já temos os dados (`conversations`/`messages`); falta a UI. *Baixo risco.*
 - [ ] **F1.14** (opcional, gamificação) **Mind Score** — métrica de cobertura/maturidade do clone (ex.: nº de palavras/lacunas preenchidas) com barra "Expert → Master", estilo Delphi. Nudge de engajamento pro criador continuar treinando. *Nice-to-have, Fase 2.*
 - [ ] **F1.15** (Fase 2) **Audience/CRM** — tabela de quem conversou (mensagens, tags, last active), export/sync CRM. Visto no Delphi; é feature de plataforma madura.
+
+- [ ] **F1.16** **Studio shell estilo Delphi (menu lateral + seções)** — restruturar a área do criador num app único com sidebar: **Insights** (analytics — E6.5 ✅), **Conversations** (F1.13), **Audience** (F1.15/F1.17), **Knowledge** (lista + Add Knowledge F1.9), **Profile/Persona** (editor — E6.4 ✅), **Train** (F1.12). Hoje são páginas soltas; falta o layout com nav. **Estrutural — base das outras.**
+- [ ] **F1.17** **Controle de acesso da audiência** — criador decide quem fala com o clone: liberar por e-mail, importar lista, **código de acesso**, ou **shortlink de pagamento**. Estende paywall (E5/E6.3) + Audience (F1.15).
+- [ ] **F1.18** **Mind Visualization 3D** — grafo 3D do conhecimento (drag/zoom/hover), como o `delphi.ai/.../visualize`. Ver doc 09 + **F2.5**. Versão fiel depende da F1.5 (KG); antes dá pra fazer "documentos↔chunks".
+
+> **Mapa Delphi → backlog (telas jun/2026):** menu lateral ❌F1.16 · Train ❌F1.12 · Conversations ❌F1.13 (dados existem) · Insights 🟡(analytics✅ E6.5, Mind Score ❌F1.14) · Audience ❌F1.15+F1.17 · Knowledge 🟡(lista✅ E6.4, pastas/Add ❌F1.9) · Voz ❌F1.3 (key no `.env`) · Mente 3D ❌F1.18/F2.5.
+> **Ordem sugerida:** F1.16 (shell) → F1.12 (train) → F1.13 (conversations) → F1.9 (add knowledge) → F1.3 (voz) → F1.17 (acesso) → F1.14/F1.18.
 
 ## FASE 1.5 — Camada de fidelidade (knowledge graph) — ver doc 10
 - [ ] **F1.5.1** Extração de entidades/relações/princípios por LLM → `kg_entities`/`kg_relations` com `confidence`.
