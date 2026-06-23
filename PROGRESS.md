@@ -7,10 +7,13 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E6 — Frontend MVP** (1/5 tarefas).
-- **Próxima tarefa:** **E6.2** — Chat `/c/[slug]/chat` (estilo ChatGPT — doc 11): MessageList, Composer, fontes, badge de guardrail, disclaimer. Wirear `requireAuth + requireAccess` no `POST /api/chat` (follow-up do E5.2).
+- **Épico atual:** **E6 — Frontend MVP** (2/5 tarefas).
+- **Próxima tarefa:** **E6.3** — Paywall/checkout: tela de oferta no lugar do composer quando sem assinatura + retorno validando assinatura (usa o 402 do `requireAccess` + o webhook do E5.3). Provavelmente junto com a **tela de login** (Supabase Auth) — que destrava o follow-up de auth do chat.
 - **Último commit:** `54ee99c E6.1: landing pública do clone (/c/[slug])`.
-- **Testes:** 295 verdes em 34 arquivos. Lint + typecheck verdes.
+- **Testes:** 305 verdes em 35 arquivos. Lint + typecheck verdes.
+
+> ⚠️ **Decisão de escopo E6.2 (auth adiada)**: o chat consome `POST /api/chat` **sem enforcement** porque ainda não há tela de login (E5.1 só fez o backend de JWT). O follow-up "wirear `requireAuth + requireAccess` no `POST /api/chat`" segue **aberto** — fazer junto com a tela de login (E6.3). Assim os 13 testes de chat continuam verdes e o chat funciona end-to-end já.
+> 🟡 **Follow-ups visuais E6.2**: (1) **markdown** — respostas vêm em markdown (headers/bold/listas) mas a UI renderiza texto puro (`whitespace-pre-wrap`); (2) **streaming** — backend `/api/chat` é não-streaming, UI mostra "pensando" (3 pontinhos) e troca pela resposta completa. Ambos são polimento, não bloqueiam a aceitação (fontes/guardrail/disclaimer estão prontos).
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -74,6 +77,16 @@ Landing pública do clone pronta (`/c/[slug]`), verificada end-to-end (curl → 
 - **Env**: `.env.example` ganhou `NEXT_PUBLIC_API_URL` e `BILLING_PROVIDER` (este faltava do E5.3).
 - **Testes**: 12 novos — 3 integração no endpoint (perfil curado, não-vazamento da persona, 404) + 9 unit no `lib/creator` (initialsFor 4 + buildLandingView 5). Total 295 verdes em 34 arquivos.
 
+## Marco do E6.2 (referência rápida)
+
+Chat `/c/[slug]/chat` estilo ChatGPT pronto, verificado end-to-end (page 200; POST via proxy → pipeline RAG real do Haiku citando [1], 1 fonte, sem guardrail):
+- **Proxy BFF** (`app/api/chat/route.ts`): `POST /api/chat` same-origin que encaminha pro backend (`apiBaseUrl()`). Evita CORS no Hono e deixa o seam pra anexar o JWT do Supabase server-side quando o login existir (auth do chat adiada — ver aviso acima).
+- **Camada pura** (`lib/chat.ts`, testada): tipos espelhando a resposta do backend + `sourceLabel`, `dedupeSources` (colapsa chunks do mesmo `documentId` → 1 chip, preserva ordem de rerank), `assistantMessageFromResponse` (mapeia fontes, marca guardrail quando `guardrailFlag='investment'`, zera fontes no `no_context`), `shouldSubmitOnKey` (Enter envia / Shift+Enter quebra / respeita IME), `postChat` (fetch pro proxy).
+- **Componentes** (doc 11): `ChatRoom` (client, orquestra estado: messages, conversationId via ref, isSending, auto-scroll, "Nova conversa" reseta thread), `MessageList` (assistant à esquerda c/ avatar de iniciais + bolha; user à direita; `GuardrailNotice` discreto dourado — não vermelho; `ThinkingDots`; `Sources` como chips "de: <título>"), `Composer` (textarea auto-expansível, Enter envia, botão seta com `aria-label`), `EmptyState` (saudação + tagline + cartões de sugestão clicáveis que enviam). Página é Server Component que faz `fetchCreator` → `notFound()` se slug inválido → monta `<ChatRoom view={buildLandingView(...)} />`.
+- **Disclaimer** sempre visível no rodapé do composer (regra anti-engano §6 + CVM).
+- **Adiado (follow-up, não bloqueia aceite)**: enforcement de auth no `/api/chat` (espera login); render de **markdown** (hoje texto puro); **streaming** (backend não-streaming, UI usa "pensando").
+- **Testes**: 10 novos unit no `lib/chat` (sourceLabel 2, dedupeSources 1, assistantMessageFromResponse 3, shouldSubmitOnKey 4). Total 305 verdes em 35 arquivos. (Os 13 testes de integração do chat seguem intactos — sem auth.)
+
 ## ▶️ Roteiro de retomada padrão
 
 1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
@@ -123,6 +136,7 @@ Landing pública do clone pronta (`/c/[slug]`), verificada end-to-end (curl → 
 
 ### E6 — Frontend MVP
 - [x] **E6.1** Landing `/c/[slug]` — ver marco abaixo.
+- [x] **E6.2** Chat `/c/[slug]/chat` (estilo ChatGPT) — ver marco abaixo. Auth adiada p/ tela de login (E6.3).
 - [ ] E6.2 Chat `/c/[slug]/chat` (estilo ChatGPT — doc 11)
 - [ ] E6.3 Paywall/checkout
 - [ ] E6.4 Studio `/studio`

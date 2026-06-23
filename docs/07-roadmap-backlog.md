@@ -64,7 +64,7 @@
 
 ### Épico E6 — Frontend MVP
 - [x] **E6.1** Landing do clone (`/c/[slug]`) com exemplos e CTA + disclaimer.
-- [ ] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming.
+- [x] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming. *(streaming e markdown ficaram como follow-up — backend `/api/chat` é não-streaming; auth no chat segue adiada até a tela de login.)*
 - [ ] **E6.3** Paywall/checkout e retorno validando assinatura.
 - [ ] **E6.4** Studio do criador (`/studio`): fontes, status, editor de Persona, analytics, "testar clone".
 - [ ] **E6.5** Analytics cards (conversas, custo, perguntas top, taxa de guardrail).
