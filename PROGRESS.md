@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E1 — Ingestão & second brain** (1/5 tarefas).
 - **Próxima tarefa:** **E1.2** — `ManualUploadConnector` → endpoint `POST /api/creators/{slug}/documents` + `make ingest-fausto` (content_hash garante idempotência).
-- **Último commit:** `E1.1: drizzle-zod schemas + tipos por tabela`.
+- **Último commit:** `58c8bd2 E1.1: drizzle-zod schemas + tipos por tabela`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
