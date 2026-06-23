@@ -31,6 +31,9 @@ export const creators = pgTable('creators', {
   slug: text('slug').notNull().unique(),
   displayName: text('display_name').notNull(),
   niche: text('niche'),
+  // Dono do clone (self-signup, F1.x). Nulo p/ criadores legados (ex.: seed do
+  // fausto). Forward-ref a `users` (definida abaixo) via thunk do Drizzle.
+  ownerUserId: uuid('owner_user_id').references(() => users.id),
   // Persona Card (ver docs/05-rag-and-guardrails.md §Persona Card).
   personaCard: jsonb('persona_card'),
   voiceId: text('voice_id'),

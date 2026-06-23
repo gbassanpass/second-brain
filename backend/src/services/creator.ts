@@ -1,7 +1,99 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { and, count, desc, eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { chunks, contentSources, creators, documents } from '../db/schema.js';
+import { chunks, contentSources, creators, documents, users } from '../db/schema.js';
 import { personaCardSchema } from '../rag/persona.js';
+
+/** Turn a display name into a URL-safe slug (ascii, kebab-case). */
+export function slugify(input: string): string {
+  return input
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '') // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+export interface CreatedCreator {
+  id: string;
+  slug: string;
+  displayName: string;
+}
+
+/**
+ * Create a creator owned by `ownerUserId` (self-signup). Slug derives from the
+ * name and is made unique with a numeric suffix on collision. Idempotent-ish:
+ * if the same owner already has a creator with the same display name, returns
+ * it instead of creating a duplicate.
+ */
+export async function createCreator(
+  db: Database,
+  input: { displayName: string; ownerUserId: string; niche?: string | null },
+): Promise<CreatedCreator> {
+  const existing = await db
+    .select({ id: creators.id, slug: creators.slug, displayName: creators.displayName })
+    .from(creators)
+    .where(
+      and(eq(creators.ownerUserId, input.ownerUserId), eq(creators.displayName, input.displayName)),
+    )
+    .limit(1);
+  if (existing[0]) return existing[0];
+
+  const base = slugify(input.displayName) || 'criador';
+  let slug = base;
+  for (let n = 2; n < 1000; n += 1) {
+    const taken = await db
+      .select({ id: creators.id })
+      .from(creators)
+      .where(eq(creators.slug, slug))
+      .limit(1);
+    if (!taken[0]) break;
+    slug = `${base}-${n}`;
+  }
+
+  const [row] = await db
+    .insert(creators)
+    .values({
+      slug,
+      displayName: input.displayName,
+      niche: input.niche ?? null,
+      ownerUserId: input.ownerUserId,
+    })
+    .returning({ id: creators.id, slug: creators.slug, displayName: creators.displayName });
+  if (!row) throw new Error('createCreator: insert returned no row');
+
+  // Promote the owner to `creator` so they can use the Studio (no-op if already
+  // creator/operator — we never downgrade an operator).
+  await db
+    .update(users)
+    .set({ role: 'creator' })
+    .where(and(eq(users.id, input.ownerUserId), eq(users.role, 'subscriber')));
+
+  return row;
+}
+
+export type OwnershipResult = { ok: true; creatorId: string } | { ok: false; status: 404 | 403 };
+
+/**
+ * Resolve a creator by slug, enforcing ownership for the Studio (F1.x):
+ * operators manage any creator; everyone else only the creators they own.
+ */
+export async function resolveOwnedCreator(
+  db: Database,
+  slug: string,
+  user: { id: string; role: string },
+): Promise<OwnershipResult> {
+  const [creator] = await db
+    .select({ id: creators.id, ownerUserId: creators.ownerUserId })
+    .from(creators)
+    .where(eq(creators.slug, slug))
+    .limit(1);
+  if (!creator) return { ok: false, status: 404 };
+  if (user.role === 'operator' || creator.ownerUserId === user.id) {
+    return { ok: true, creatorId: creator.id };
+  }
+  return { ok: false, status: 403 };
+}
 
 /**
  * Landing-safe public profile of a creator (E6.1).

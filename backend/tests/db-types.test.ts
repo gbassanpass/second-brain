@@ -58,6 +58,7 @@ describe('creators', () => {
       slug: 'fausto',
       displayName: 'Fausto Bassan',
       niche: null,
+      ownerUserId: null,
       personaCard: null,
       voiceId: null,
       status: 'active',
