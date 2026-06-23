@@ -167,6 +167,7 @@ export async function processChat(
     query: input.query,
     retrieval,
     routing,
+    guardrail,
     db,
     llm: services.llm,
     cfg,
@@ -281,6 +282,7 @@ interface AssistantTurnArgs {
   query: string;
   retrieval: Awaited<ReturnType<typeof retrieveAndRerank>>;
   routing: RoutingDecision;
+  guardrail: GuardrailDecision;
   db: Database;
   llm: LLMClient;
   cfg: ChatLimits;
@@ -330,6 +332,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       title: titles.get(h.documentId) ?? undefined,
     })),
     history: args.historyOrdered,
+    guardrail: args.guardrail,
     model: args.routing.model,
     maxTokens: args.cfg.maxTokens,
   });

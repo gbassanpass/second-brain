@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { FakeLLM } from '../src/llm/fake.js';
+import { detectInvestmentIntent } from '../src/rag/guardrails.js';
 import { type PersonaCard, personaCardSchema } from '../src/rag/persona.js';
-import { buildLLMArgs, buildSystemPrompt, buildUserPrompt } from '../src/rag/prompt.js';
+import {
+  EDUCATIONAL_MODE_PREAMBLE,
+  buildLLMArgs,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from '../src/rag/prompt.js';
 
 const FAUSTO: PersonaCard = personaCardSchema.parse({
   name: 'Fausto Bassan',
@@ -71,6 +77,38 @@ describe('buildUserPrompt', () => {
     const out = buildUserPrompt({ query: 'pergunta solta', chunks: [] });
     expect(out).toContain('(nenhum trecho relevante encontrado)');
     expect(out).toContain('Pergunta: pergunta solta');
+  });
+
+  it('prepends EDUCATIONAL MODE preamble when guardrail flags investment', () => {
+    const guardrail = detectInvestmentIntent('Que cripto eu devo comprar?');
+    expect(guardrail.flag).toBe('investment');
+    const out = buildUserPrompt({
+      query: 'Que cripto eu devo comprar?',
+      chunks: [{ text: 'algum contexto' }],
+      guardrail,
+    });
+    expect(out.startsWith(EDUCATIONAL_MODE_PREAMBLE)).toBe(true);
+    expect(out).toContain('MODO EDUCACIONAL OBRIGATÓRIO');
+    expect(out).toContain('NUNCA recomende compra, venda ou alocação');
+    expect(out).toContain('"Conteúdo educativo; não é recomendação de investimento."');
+    // The chunks and the question still follow.
+    expect(out).toContain('TRECHOS:');
+    expect(out).toContain('Pergunta: Que cripto eu devo comprar?');
+  });
+
+  it('omits the preamble when guardrail is null or absent', () => {
+    const withoutGuardrail = buildUserPrompt({
+      query: 'O que ele pensa sobre eleições?',
+      chunks: [{ text: 'sobre eleições' }],
+    });
+    expect(withoutGuardrail).not.toContain('MODO EDUCACIONAL');
+
+    const nullGuardrail = buildUserPrompt({
+      query: 'O que ele pensa sobre eleições?',
+      chunks: [{ text: 'sobre eleições' }],
+      guardrail: detectInvestmentIntent('O que ele pensa sobre eleições?'),
+    });
+    expect(nullGuardrail).not.toContain('MODO EDUCACIONAL');
   });
 });
 

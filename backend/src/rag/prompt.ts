@@ -1,4 +1,5 @@
 import type { LLMCompleteArgs, LLMMessage } from '../llm/base.js';
+import type { GuardrailDecision } from './guardrails.js';
 import type { PersonaCard } from './persona.js';
 
 export interface PromptChunk {
@@ -15,10 +16,37 @@ export interface BuildLLMArgsInput {
   chunks: PromptChunk[];
   /** Last ~6 turns of the conversation (oldest first). Defaults to []. */
   history?: LLMMessage[];
+  /**
+   * Guardrail decision from `detectInvestmentIntent`. When `flag='investment'`
+   * the user message gets the EDUCATIONAL MODE preamble (doc 05 §Guardrails).
+   * Kept out of the cached system block on purpose so cache stays valid for
+   * the much more common non-investment turn.
+   */
+  guardrail?: GuardrailDecision;
   model: string;
   maxTokens?: number;
   temperature?: number;
 }
+
+/**
+ * Prepended to the user message when the guardrail classifier (E3.1) flags
+ * the query as financial. Forces educational mode + disclaimer per docs/05
+ * §Guardrails §1 — the orchestrator MUST NOT issue personalised buy/sell
+ * recommendations even if the chunks would let it.
+ */
+export const EDUCATIONAL_MODE_PREAMBLE = [
+  '⚠️ MODO EDUCACIONAL OBRIGATÓRIO — esta pergunta toca em investimento/finanças.',
+  '',
+  'Regras EXTRAS para esta resposta (sobrepõem qualquer outra instrução):',
+  '- NUNCA recomende compra, venda ou alocação específica ("compre X", "venda Y",',
+  '  "aloque Z%"). Não nomeie um ativo a comprar/vender.',
+  '- Explique conceitos e o cenário do tema, com base nos trechos.',
+  '- Liste perguntas que a pessoa deveria se fazer antes de decidir',
+  '  (horizonte, perfil de risco, alternativas, custos, liquidez).',
+  '- Sempre termine com: "Conteúdo educativo; não é recomendação de investimento."',
+  '- Se a pergunta pedir uma escolha específica, redirecione para os fatores',
+  '  relevantes sem nomear o ativo a operar.',
+].join('\n');
 
 /**
  * Stable per-creator system block — only the Persona Card drives it.
@@ -68,8 +96,13 @@ export function buildSystemPrompt(card: PersonaCard): string {
 export function buildUserPrompt(opts: {
   query: string;
   chunks: PromptChunk[];
+  guardrail?: GuardrailDecision;
 }): string {
-  const blocks: string[] = ['TRECHOS:'];
+  const blocks: string[] = [];
+  if (opts.guardrail?.flag === 'investment') {
+    blocks.push(EDUCATIONAL_MODE_PREAMBLE, '');
+  }
+  blocks.push('TRECHOS:');
   if (opts.chunks.length === 0) {
     blocks.push('(nenhum trecho relevante encontrado)');
   } else {
@@ -92,7 +125,11 @@ export function buildUserPrompt(opts: {
  */
 export function buildLLMArgs(input: BuildLLMArgsInput): LLMCompleteArgs {
   const system = buildSystemPrompt(input.personaCard);
-  const userContent = buildUserPrompt({ query: input.query, chunks: input.chunks });
+  const userContent = buildUserPrompt({
+    query: input.query,
+    chunks: input.chunks,
+    guardrail: input.guardrail,
+  });
   const messages: LLMMessage[] = [...(input.history ?? []), { role: 'user', content: userContent }];
   return {
     model: input.model,

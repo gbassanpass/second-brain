@@ -215,7 +215,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(llm.calls[0]?.system).toBe(llm.calls[1]?.system);
   });
 
-  it('flags investment intent and persists guardrail_flag on the assistant message', async () => {
+  it('flags investment intent, forces educational mode in the prompt, and persists guardrail_flag', async () => {
     llm = new FakeLLM();
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
@@ -236,6 +236,11 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(body.guardrail.confidence).toBe('high');
     expect(body.guardrail.signals.some((s) => s.startsWith('action:'))).toBe(true);
 
+    // Educational mode preamble must have hit the LLM's user message.
+    const lastUser = llm.calls[0]?.messages.at(-1)?.content ?? '';
+    expect(lastUser).toContain('MODO EDUCACIONAL OBRIGATÓRIO');
+    expect(lastUser).toContain('Pergunta: Que cripto eu devo comprar agora?');
+
     const db = getDb(DB_URL);
     const [row] = await db
       .select({ guardrailFlag: messages.guardrailFlag })
@@ -244,7 +249,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(row?.guardrailFlag).toBe('investment');
   });
 
-  it('does not flag a non-financial query (guardrailFlag stays null)', async () => {
+  it('does not flag a non-financial query (no preamble, guardrailFlag stays null)', async () => {
     llm = new FakeLLM();
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
@@ -254,6 +259,8 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     });
     const body = (await res.json()) as { guardrailFlag: string | null };
     expect(body.guardrailFlag).toBeNull();
+    const lastUser = llm.calls[0]?.messages.at(-1)?.content ?? '';
+    expect(lastUser).not.toContain('MODO EDUCACIONAL');
   });
 
   it('routes to the fallback model for multi-question queries (and logs it)', async () => {

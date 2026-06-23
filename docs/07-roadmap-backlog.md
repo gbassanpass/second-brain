@@ -44,7 +44,7 @@
 ### Épico E3 — Guardrails (BLOQUEANTE para lançar)
 - [x] **E3.1** Classificador de intenção de investimento (regras + LLM barato) na entrada.
   - *Aceite:* perguntas tipo "que cripto comprar" são detectadas (cobertura validada no eval).
-- [ ] **E3.2** Modo educacional forçado + disclaimer quando detectado; `guardrail_flag='investment'`.
+- [x] **E3.2** Modo educacional forçado + disclaimer quando detectado; `guardrail_flag='investment'`.
 - [ ] **E3.3** Filtro pós-geração que bloqueia recomendação direta ("compre/venda/aloque X%").
   - *Aceite:* nenhuma resposta do eval de investimento contém recomendação direta.
 - [ ] **E3.4** Guardrail anti-alucinação (sem contexto → "não tenho isso registrado") e tom neutro.
