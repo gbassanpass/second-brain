@@ -5,12 +5,20 @@ export default function HomePage() {
       <p className="text-center text-zinc-400">
         Mentes digitais de criadores. Em construção — comece pelo clone do Fausto.
       </p>
-      <a
-        href="/c/fausto"
-        className="rounded-2xl bg-accent px-6 py-3 text-sm font-medium text-zinc-100 transition hover:opacity-90"
-      >
-        Entrar no clone do Fausto
-      </a>
+      <div className="flex flex-col items-center gap-3 sm:flex-row">
+        <a
+          href="/onboarding"
+          className="rounded-2xl bg-accent-gold px-6 py-3 text-sm font-semibold text-accent transition hover:opacity-90"
+        >
+          Criar minha mente digital
+        </a>
+        <a
+          href="/c/fausto"
+          className="rounded-2xl border border-zinc-700 px-6 py-3 text-sm font-medium text-zinc-200 transition hover:border-accent-gold"
+        >
+          Ver o clone do Fausto
+        </a>
+      </div>
     </main>
   );
 }
