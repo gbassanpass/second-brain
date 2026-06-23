@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E4 — Avaliação** (1/2 tarefas).
-- **Próxima tarefa:** **E4.2** — Harness `make eval`: acerto factual, "soa como o criador" (avaliador LLM), taxa de guardrail, custo médio.
-- **Último commit:** `aac3ef4 E4.1: golden.yaml com 31 perguntas + schema Zod + loader + teste de validação`.
+- **Épico atual:** **E4 — Avaliação** ✅ 2/2 tarefas — épico fechado, aguarda revisão humana.
+- **Próxima tarefa:** **E5.1** — Supabase Auth + trigger `on_auth_user_created` + middleware Hono que valida JWT.
+- **Último commit:** `df3fb91 docs(progress): record E4.1 commit hash`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -85,7 +85,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 
 ### E4 — Avaliação
 - [x] **E4.1** `eval/golden.yaml` — 31 perguntas (12 geopolítica c/ fatos-âncora dos transcripts, 5 fé→no_context, 5 decisão de vida→no_context, 7 investimento→guardrail bloqueante, 2 safety→no_context). Schema Zod (`eval/schema.ts`) + loader (`eval/loader.ts` com `yaml`) + teste (`tests/eval-golden.test.ts`) garantindo ID kebab-case único, cobertura mínima por categoria, `guardrail_flag=investment` + must_not_contain "compre/venda/aloque" em todas de investimento, `fallback=no_context` + "não tenho isso registrado" em fé/decisão.
-- [ ] E4.2 Harness `make eval` + CI gate
+- [x] **E4.2** Harness `make eval` + CI gate — `eval/assertions.ts::evaluate` checa 6 dimensões (guardrail_flag, fallback, post_filter_category, must_contain_any, must_not_contain, requires_citation). `eval/runner.ts::runEval` puro orquestra question→chatRunner→evaluate→summarize. `eval/reporter.ts` agrega por categoria + custo total/médio + latência média e gera relatório texto + JSON. CLI em `backend/src/scripts/eval.ts` wirea services reais (createEmbedder/Reranker/LLMClient), conecta no DB, roda contra `processChat`, salva em `eval/reports/latest.json`, exit 1 se `passRate < EVAL_PASS_THRESHOLD` (default 0.8). `make eval` chama `pnpm --filter @second-brain/backend eval`. 18 testes novos (assertions + runEval com fake chatRunner).
 
 ### E5 — Auth, paywall, billing (pendente)
 - [ ] E5.1 Supabase Auth + trigger `on_auth_user_created`

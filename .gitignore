@@ -51,3 +51,6 @@ data/fausto/*.mp3
 data/fausto/*.mp4
 data/fausto/*.wav
 data/fausto/*.m4a
+
+# Eval reports — gerados por `make eval`, não versionar (saída de DB live)
+eval/reports/

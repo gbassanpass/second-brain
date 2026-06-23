@@ -51,7 +51,7 @@
 
 ### Épico E4 — Avaliação
 - [x] **E4.1** `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).
-- [ ] **E4.2** Harness `make eval`: acerto factual, "soa como o criador" (avaliador LLM), taxa de guardrail, custo médio.
+- [x] **E4.2** Harness `make eval`: acerto factual, "soa como o criador" (avaliador LLM), taxa de guardrail, custo médio.
   - *Aceite:* relatório com métricas; CI falha em regressão abaixo do baseline (doc 01).
 
 ### Épico E5 — Auth, paywall e billing

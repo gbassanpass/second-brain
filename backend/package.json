@@ -19,7 +19,8 @@
     "retrieval-smoke": "tsx src/scripts/retrieval-smoke.ts",
     "prompt-smoke": "tsx src/scripts/prompt-smoke.ts",
     "worker:ingest": "tsx src/scripts/worker-ingest.ts",
-    "worker:ingest:watch": "tsx watch src/scripts/worker-ingest.ts"
+    "worker:ingest:watch": "tsx watch src/scripts/worker-ingest.ts",
+    "eval": "tsx src/scripts/eval.ts"
   },
   "dependencies": {
     "@hono/node-server": "1.13.7",

@@ -56,8 +56,8 @@ migrate-gen: ## Gera migration a partir do schema Drizzle
 seed: ## Cria criador 'fausto' + manual source + Persona Card (idempotente)
 	pnpm --filter @second-brain/backend seed
 
-eval: ## Roda o harness de avaliação do RAG (golden questions)
-	@echo "[eval] implementado no E4"
+eval: ## Roda o harness das golden questions (eval/golden.yaml) contra o processChat real
+	pnpm --filter @second-brain/backend eval
 
 ingest-fausto: ## ManualUploadConnector lê data/fausto/ e ingere
 	pnpm --filter @second-brain/backend ingest-fausto
