@@ -128,7 +128,7 @@ describe.skipIf(!dbReachable)('syncContentSource (integration)', () => {
     if (!other) throw new Error('seed failed');
 
     await expect(syncContentSource(db, embedder, other.id, { dataDir })).rejects.toThrow(
-      /unsupported source kind/,
+      /no connector for source kind/,
     );
 
     const [src] = await db

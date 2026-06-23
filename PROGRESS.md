@@ -8,9 +8,11 @@
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
-- **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 PhylloConnector (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
+- **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 apify (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
 - **Último commit:** `ddc195d fix(auth/eval): ES256 JWT via JWKS, eval ESM, Cohere 429 backoff`.
-- **Testes:** 338 verdes em 39 arquivos. Lint + typecheck verdes.
+- **Testes:** 346 verdes em 41 arquivos. Lint + typecheck verdes.
+
+> 🚧 **F1.11 — Instagram por handle (build feito, falta token Apify)**: scraper `backend/src/scrapers/` (interface `InstagramScraper` + `ApifyInstagramScraper` via run-sync-get-dataset-items + `FakeInstagramScraper`) → `InstagramConnector` (ContentConnector) → reusa `syncContentSource` (dedup + index + status). Endpoint gated `POST /api/creators/:slug/sources/instagram {handle, limit?}` (creator/operator). Config: `SCRAPER_PROVIDER` (apify|fake, default fake em test), `APIFY_TOKEN`, `APIFY_INSTAGRAM_ACTOR`, `INSTAGRAM_RESULTS_LIMIT`. Caminho **Fake** verificado end-to-end (handle→docs→chunks, idempotente, fonte vira `indexed`). **PRÓXIMO p/ validar de verdade:** setar `APIFY_TOKEN` (+`SCRAPER_PROVIDER=apify`) e puxar `@faustobassan`. Markdown do chat também já renderiza (react-markdown).
 
 > 🔑 **Como logar/testar localmente (verificado 2026-06-23)** — detalhes em memória `local_testing.md`:
 > - **Usuário de teste** (Supabase local, conta descartável — NÃO é segredo de prod): `criador@fausto.local` / senha `fausto123`, papel **operator** (vê chat + Studio e fura o paywall). Recriar se o volume for resetado: `POST 127.0.0.1:54321/auth/v1/admin/users` com `apikey`+`Bearer`=`SUPABASE_SERVICE_ROLE_KEY` e `{"email","password","email_confirm":true}`, depois `UPDATE public.users SET role='operator' WHERE email='criador@fausto.local';`.

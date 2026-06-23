@@ -84,6 +84,13 @@ function buildSchema(isTest: boolean) {
     PHYLLO_CLIENT_SECRET: optionalString,
     PHYLLO_ENV: z.enum(['sandbox', 'production']).default('sandbox'),
 
+    // Scraper de conteúdo público (Instagram por handle) — F1.11.
+    SCRAPER_PROVIDER: z.enum(['apify', 'fake']).default(isTest ? 'fake' : 'apify'),
+    APIFY_TOKEN: optionalString,
+    // Actor do Apify p/ Instagram (formato `usuario~ator`).
+    APIFY_INSTAGRAM_ACTOR: z.string().min(1).default('apify~instagram-scraper'),
+    INSTAGRAM_RESULTS_LIMIT: z.coerce.number().int().positive().max(200).default(30),
+
     ELEVENLABS_API_KEY: optionalString,
 
     BILLING_PROVIDER: z.enum(['stripe', 'fake']).default(isTest ? 'fake' : 'stripe'),

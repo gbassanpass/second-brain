@@ -15,6 +15,7 @@ import { getDb as getDbReal } from './db/client.js';
 import { createEmbedder } from './embeddings/factory.js';
 import { createLLMClient } from './llm/factory.js';
 import { createReranker } from './rerank/factory.js';
+import { createInstagramScraper } from './scrapers/factory.js';
 import type { ChatServices } from './services/chat.js';
 import { enqueueIngestSync } from './workers/queue.js';
 
@@ -76,7 +77,15 @@ export function createApp(deps: AppDeps = {}) {
   app.use('*', logger());
 
   app.route('/api/health', health);
-  app.route('/api/creators', createCreatorsRouter(authDeps));
+  app.route(
+    '/api/creators',
+    createCreatorsRouter({
+      ...authDeps,
+      getEmbedder: () => createEmbedder(getConfig()),
+      getScraper: () => createInstagramScraper(getConfig()),
+      instagramLimit: getConfig().INSTAGRAM_RESULTS_LIMIT,
+    }),
+  );
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
   app.route('/api/me', createMeRouter(authDeps));
   app.route('/api/c', createAccessRouter(authDeps));

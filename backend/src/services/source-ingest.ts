@@ -1,11 +1,19 @@
 import { resolve } from 'node:path';
 import { and, eq } from 'drizzle-orm';
+import type { ContentConnector } from '../connectors/base.js';
 import { ManualUploadConnector } from '../connectors/manual.js';
 import type { Database } from '../db/client.js';
 import { contentSources, creators } from '../db/schema.js';
 import type { Embedder } from '../embeddings/base.js';
 import { upsertDocument } from './documents.js';
 import { ensureDocumentIndexed } from './indexing.js';
+
+export interface SyncSource {
+  creatorId: string;
+  kind: string;
+  slug: string;
+  externalRef: string | null;
+}
 
 export interface SyncSourceCounts {
   docs: { total: number; inserted: number; duplicate: number };
@@ -20,6 +28,13 @@ export interface SyncSourceResult extends SyncSourceCounts {
 export interface SyncSourceOptions {
   /** Override the connector base dir. Default: `<repo>/data/<creator-slug>`. */
   dataDir?: string;
+  /**
+   * Build the connector for this source. Lets callers plug non-`manual`
+   * sources (e.g. the Instagram connector, which needs a scraper from config)
+   * without this service depending on every provider. Defaults to the manual
+   * connector keyed by `data/<slug>`.
+   */
+  buildConnector?: (source: SyncSource) => ContentConnector;
 }
 
 /**
@@ -71,24 +86,24 @@ export async function syncContentSource(
   }
 }
 
-async function runConnectorForSource(
-  db: Database,
-  embedder: Embedder,
-  source: {
-    creatorId: string;
-    kind: string;
-    slug: string;
-    externalRef: string | null;
-  },
-  opts: SyncSourceOptions,
-): Promise<SyncSourceCounts> {
+function defaultManualConnector(source: SyncSource, opts: SyncSourceOptions): ContentConnector {
   if (source.kind !== 'manual') {
-    throw new Error(`syncContentSource: unsupported source kind for MVP: ${source.kind}`);
+    throw new Error(`syncContentSource: no connector for source kind: ${source.kind}`);
   }
   const repoRoot = resolve(new URL('../../../', import.meta.url).pathname);
   const baseDir = opts.dataDir ?? source.externalRef ?? resolve(repoRoot, 'data', source.slug);
+  return new ManualUploadConnector({ baseDir });
+}
 
-  const connector = new ManualUploadConnector({ baseDir });
+async function runConnectorForSource(
+  db: Database,
+  embedder: Embedder,
+  source: SyncSource,
+  opts: SyncSourceOptions,
+): Promise<SyncSourceCounts> {
+  const connector = opts.buildConnector
+    ? opts.buildConnector(source)
+    : defaultManualConnector(source, opts);
   const counts: SyncSourceCounts = {
     docs: { total: 0, inserted: 0, duplicate: 0 },
     chunks: { created: 0 },
@@ -135,6 +150,39 @@ export async function ensureManualSource(db: Database, creatorId: string): Promi
     .returning({ id: contentSources.id });
   if (!row) {
     throw new Error('ensureManualSource: insert returned no row');
+  }
+  return row;
+}
+
+/**
+ * Idempotent helper for an `instagram` content_source keyed by handle
+ * (`external_ref`). One row per (creator, handle) — re-running an import reuses
+ * it and updates status via `syncContentSource`.
+ */
+export async function ensureInstagramSource(
+  db: Database,
+  creatorId: string,
+  handle: string,
+): Promise<{ id: string }> {
+  const ref = handle.replace(/^@/, '').trim();
+  const existing = await db
+    .select({ id: contentSources.id })
+    .from(contentSources)
+    .where(
+      and(
+        eq(contentSources.creatorId, creatorId),
+        eq(contentSources.kind, 'instagram'),
+        eq(contentSources.externalRef, ref),
+      ),
+    )
+    .limit(1);
+  if (existing[0]) return existing[0];
+  const [row] = await db
+    .insert(contentSources)
+    .values({ creatorId, kind: 'instagram', externalRef: ref, status: 'pending' })
+    .returning({ id: contentSources.id });
+  if (!row) {
+    throw new Error('ensureInstagramSource: insert returned no row');
   }
   return row;
 }
