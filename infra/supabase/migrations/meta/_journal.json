@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1782179260550,
+      "tag": "0000_curly_the_initiative",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782179339965,
+      "tag": "0001_tsv_and_storage",
+      "breakpoints": true
+    }
+  ]
+}

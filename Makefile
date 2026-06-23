@@ -13,10 +13,10 @@ help: ## Lista os alvos disponíveis
 
 up: ## Sobe Redis (docker-compose) + Supabase CLI
 	$(COMPOSE) up -d
-	@command -v supabase >/dev/null 2>&1 && (cd infra/supabase && supabase start) || echo "[warn] supabase CLI não instalado — instale com: brew install supabase/tap/supabase"
+	@command -v supabase >/dev/null 2>&1 && (cd infra && supabase start) || echo "[warn] supabase CLI não instalado — instale com: brew install supabase/tap/supabase"
 
 down: ## Para Redis + Supabase
-	@command -v supabase >/dev/null 2>&1 && (cd infra/supabase && supabase stop) || true
+	@command -v supabase >/dev/null 2>&1 && (cd infra && supabase stop) || true
 	$(COMPOSE) down
 
 dev: ## Backend + frontend em watch
@@ -35,10 +35,10 @@ typecheck: ## Type-check em todos os workspaces
 	pnpm typecheck
 
 migrate: ## Aplica migrations no Supabase (usa DATABASE_URL_DIRECT)
-	@echo "[migrate] implementado no E0.2 (drizzle-kit migrate)"
+	pnpm --filter @second-brain/backend db:migrate
 
 migrate-gen: ## Gera migration a partir do schema Drizzle
-	@echo "[migrate-gen] implementado no E0.2 (drizzle-kit generate)"
+	pnpm --filter @second-brain/backend db:generate
 
 seed: ## Cria criador 'fausto' + Persona Card + buckets de Storage
 	@echo "[seed] implementado no E0.2/E1"

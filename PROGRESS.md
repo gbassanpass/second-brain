@@ -8,14 +8,30 @@
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E0 — Scaffolding & infra**.
-- **Próxima tarefa:** **E0.2** — Supabase CLI + Drizzle ORM + schema do `docs/04-data-model.md` + bucket de Storage.
-- **Último commit:** `d9efdfb docs: add PROGRESS.md and refresh README`.
+- **Tarefa em andamento:** **E0.2 (WIP)** — código pronto; aguardando Docker para o smoke final.
+- **Próxima ação:** rodar `make up && make migrate` quando o Docker Desktop estiver rodando, validar `\d chunks` mostrando HNSW + GIN, marcar checkbox.
+
+### E0.2 — o que já foi feito (commit pendente)
+- `infra/supabase/config.toml` gerado por `supabase init` (project_id = `second-brain`).
+- Deps no backend: `drizzle-orm`, `drizzle-zod`, `drizzle-kit`, `postgres`, `dotenv`.
+- `backend/drizzle.config.ts` apontando para `DATABASE_URL_DIRECT`.
+- `backend/src/db/schema.ts` espelhando o `docs/04` inteiro (9 tabelas, vector(1536), tsvector custom type, HNSW + GIN + creator_idx + unique(creator_id, content_hash)).
+- `backend/src/db/client.ts` (postgres-js + drizzle, pooler-safe).
+- Migration `0000_curly_the_initiative.sql` (gerada + extensões pgvector/pg_trgm no topo).
+- Migration `0001_tsv_and_storage.sql` (trigger `chunks_tsv_update` + bucket `creator-content`).
+- `make migrate` / `make migrate-gen` plugados no `drizzle-kit`.
 
 ## ⛔ Bloqueios atuais
 
-- **E0.2 aguarda Docker Desktop rodando.** `supabase start` precisa do Docker (sobe Postgres + Auth + Storage locais). Supabase CLI 2.107 já está instalado.
-  - **Ação do usuário:** instalar [Docker Desktop](https://www.docker.com/products/docker-desktop/), abrir, esperar o ícone ficar verde (status "Engine running") e me avisar.
-  - Ao retomar: confirmar com `docker info --format '{{.ServerVersion}}'` (qualquer versão impressa = OK). Daí o Claude pode tocar o E0.2 ponta a ponta com smoke completo.
+- **Docker Desktop não está rodando.** Tentei restart automático mas o engine não voltou; precisa intervenção manual.
+  - **Ação do usuário:** abrir o **Docker Desktop** (Spotlight → "Docker"), esperar até o ícone na barra de menu mostrar **"Engine running"** verde, e me avisar.
+  - Confirmação rápida no terminal: `docker info --format '{{.ServerVersion}}'` — qualquer versão impressa significa OK.
+  - Ao retomar: faço `make up` (sobe Supabase local + Redis), `make migrate` (aplica `0000` + `0001`), valido `\d chunks` mostrando HNSW + GIN, marco o checkbox, commit final + push.
+
+## Notas técnicas (E0.2)
+
+- **Postgres 17** (default do Supabase CLI 2.107). Os docs `03/04/CLAUDE.md` mencionam "Postgres 16" — atualizar quando o smoke passar.
+- Migrations seguem o jeito Drizzle: cada `.sql` em `infra/supabase/migrations/` + journal em `meta/`. Snapshots da `meta/` são ignorados pelo Biome.
 
 ## Checklist da Fase 0
 
