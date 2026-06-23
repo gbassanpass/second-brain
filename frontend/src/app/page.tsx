@@ -35,7 +35,7 @@ function NavBar() {
             Entrar
           </a>
           <a
-            href="/onboarding"
+            href="/signup"
             className="rounded-xl bg-accent-gold px-4 py-2 font-semibold text-accent transition hover:opacity-90"
           >
             Criar minha mente digital
@@ -67,7 +67,7 @@ function Hero() {
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href="/onboarding"
+              href="/signup"
               className="rounded-2xl bg-accent-gold px-6 py-3 text-center text-sm font-semibold text-accent transition hover:opacity-90"
             >
               Criar minha mente digital
@@ -231,7 +231,7 @@ function FinalCta() {
         </h2>
         <p className="mt-4 text-zinc-400">Crie a sua mente digital em minutos.</p>
         <a
-          href="/onboarding"
+          href="/signup"
           className="mt-8 inline-block rounded-2xl bg-accent-gold px-8 py-4 text-sm font-semibold text-accent transition hover:opacity-90"
         >
           Criar minha mente digital

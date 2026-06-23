@@ -29,9 +29,15 @@ export default function OnboardingPage() {
   if (status === 'anon') {
     return (
       <Centered>
-        <p className="text-sm text-zinc-400">Entre para criar a sua mente digital.</p>
-        <a href="/login" className="mt-3 inline-block text-sm text-accent-gold underline">
-          Entrar
+        <p className="text-sm text-zinc-400">Crie sua conta para montar a sua mente digital.</p>
+        <a
+          href="/signup"
+          className="mt-4 inline-block rounded-2xl bg-accent-gold px-5 py-2.5 text-sm font-semibold text-accent transition hover:opacity-90"
+        >
+          Criar conta
+        </a>
+        <a href="/login" className="mt-3 inline-block text-sm text-zinc-500 underline">
+          Já tenho conta
         </a>
       </Centered>
     );
