@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual concluído:** **E0 — Scaffolding & infra** (4/4 tarefas) ✅. Pronto para revisão antes de iniciar E1.
 - **Próximo épico:** **E1 — Ingestão & second brain**. Próxima tarefa: **E1.1** (Schema Drizzle + tipos Zod com `drizzle-zod`).
-- **Último commit:** `E0.4: adapters (LLM/embeddings/rerank/transcription) + ManualUploadConnector + Biome no-restricted-imports`.
+- **Último commit:** `5ca15c2 E0.4: adapters (LLM/embeddings/rerank/transcription) + ManualUploadConnector`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
