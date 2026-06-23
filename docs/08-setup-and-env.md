@@ -37,7 +37,7 @@ EMBEDDINGS_PROVIDER=openai
 EMBEDDING_MODEL=text-embedding-3-small
 COHERE_API_KEY=
 RERANK_PROVIDER=cohere
-RERANK_MODEL=rerank-3.5
+RERANK_MODEL=rerank-v3.5
 
 # Transcrição
 TRANSCRIPTION_PROVIDER=deepgram

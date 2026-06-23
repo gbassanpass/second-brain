@@ -36,7 +36,9 @@ describe('FakeReranker', () => {
 
 describe('CohereReranker', () => {
   it('requires an API key', () => {
-    expect(() => new CohereReranker({ apiKey: '', model: 'rerank-3.5' })).toThrow(/COHERE_API_KEY/);
+    expect(() => new CohereReranker({ apiKey: '', model: 'rerank-v3.5' })).toThrow(
+      /COHERE_API_KEY/,
+    );
   });
 
   it('posts to /v2/rerank and re-maps indices to candidate ids', async () => {
@@ -47,7 +49,7 @@ describe('CohereReranker', () => {
         documents: string[];
         top_n: number;
       };
-      expect(body.model).toBe('rerank-3.5');
+      expect(body.model).toBe('rerank-v3.5');
       expect(body.top_n).toBe(2);
       expect(body.documents).toHaveLength(4);
       return new Response(
@@ -61,7 +63,7 @@ describe('CohereReranker', () => {
       );
     };
 
-    const r = new CohereReranker({ apiKey: 'k', model: 'rerank-3.5', fetchImpl });
+    const r = new CohereReranker({ apiKey: 'k', model: 'rerank-v3.5', fetchImpl });
     const out = await r.rerank('geopolítica do gás', docs, 2);
     expect(out.map((o) => o.id)).toEqual(['d', 'a']);
     expect(out[0]?.score).toBeCloseTo(0.9);

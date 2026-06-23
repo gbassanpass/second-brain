@@ -65,7 +65,7 @@ function buildSchema(isTest: boolean) {
     OPENAI_API_KEY: optionalProvider('OPENAI_API_KEY'),
 
     RERANK_PROVIDER: z.enum(['cohere', 'fake']).default(isTest ? 'fake' : 'cohere'),
-    RERANK_MODEL: z.string().min(1).default('rerank-3.5'),
+    RERANK_MODEL: z.string().min(1).default('rerank-v3.5'),
     COHERE_API_KEY: optionalProvider('COHERE_API_KEY'),
 
     TRANSCRIPTION_PROVIDER: z
