@@ -15,6 +15,13 @@
       "when": 1782179339965,
       "tag": "0001_tsv_and_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782740400000,
+      "tag": "0002_auth_trigger",
+      "breakpoints": true
     }
   ]
 }

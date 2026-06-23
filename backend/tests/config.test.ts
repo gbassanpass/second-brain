@@ -12,6 +12,7 @@ const validDevEnv = () => ({
   SUPABASE_URL: 'http://localhost:54321',
   SUPABASE_ANON_KEY: 'anon-key',
   SUPABASE_SERVICE_ROLE_KEY: 'service-role-key',
+  SUPABASE_JWT_SECRET: 'jwt-secret-with-32-chars-minimum-padding',
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:54322/postgres',
   DATABASE_URL_DIRECT: 'postgresql://postgres:postgres@localhost:54322/postgres',
   REDIS_URL: 'redis://localhost:6379/0',
@@ -54,6 +55,7 @@ describe('loadConfig', () => {
     expect(message).toContain('SUPABASE_URL');
     expect(message).toContain('SUPABASE_ANON_KEY');
     expect(message).toContain('SUPABASE_SERVICE_ROLE_KEY');
+    expect(message).toContain('SUPABASE_JWT_SECRET');
     expect(message).toContain('DATABASE_URL');
     expect(message).toContain('DATABASE_URL_DIRECT');
     expect(message).toContain('REDIS_URL');

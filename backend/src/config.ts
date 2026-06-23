@@ -19,6 +19,9 @@ const FAKES = {
   SUPABASE_URL: 'http://localhost:54321',
   SUPABASE_ANON_KEY: `${FAKE_PREFIX}supabase-anon`,
   SUPABASE_SERVICE_ROLE_KEY: `${FAKE_PREFIX}supabase-service-role`,
+  // Default JWT secret for `supabase start` — matches `supabase status`
+  // output so tests can sign tokens that the middleware accepts.
+  SUPABASE_JWT_SECRET: 'super-secret-jwt-token-with-at-least-32-characters-long',
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:54322/postgres',
   DATABASE_URL_DIRECT: 'postgresql://postgres:postgres@localhost:54322/postgres',
   REDIS_URL: 'redis://localhost:6379/0',
@@ -50,6 +53,9 @@ function buildSchema(isTest: boolean) {
     SUPABASE_URL: requiredAtBoot('SUPABASE_URL'),
     SUPABASE_ANON_KEY: requiredAtBoot('SUPABASE_ANON_KEY'),
     SUPABASE_SERVICE_ROLE_KEY: requiredAtBoot('SUPABASE_SERVICE_ROLE_KEY'),
+    // HS256 secret that GoTrue signs JWTs with. `supabase status` exposes it
+    // locally; fetch the prod value from the Supabase dashboard.
+    SUPABASE_JWT_SECRET: requiredAtBoot('SUPABASE_JWT_SECRET'),
     DATABASE_URL: requiredAtBoot('DATABASE_URL'),
     DATABASE_URL_DIRECT: requiredAtBoot('DATABASE_URL_DIRECT'),
 

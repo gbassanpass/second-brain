@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E4 — Avaliação** ✅ 2/2 tarefas — épico fechado, aguarda revisão humana.
-- **Próxima tarefa:** **E5.1** — Supabase Auth + trigger `on_auth_user_created` + middleware Hono que valida JWT.
-- **Último commit:** `b61b017 E4.2: harness make eval + CI gate por passRate`.
+- **Épico atual:** **E5 — Auth, paywall e billing** (1/3 tarefas).
+- **Próxima tarefa:** **E5.2** — Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
+- **Último commit:** `831ed28 docs(progress): record E4.2 commit hash`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -87,8 +87,8 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E4.1** `eval/golden.yaml` — 31 perguntas (12 geopolítica c/ fatos-âncora dos transcripts, 5 fé→no_context, 5 decisão de vida→no_context, 7 investimento→guardrail bloqueante, 2 safety→no_context). Schema Zod (`eval/schema.ts`) + loader (`eval/loader.ts` com `yaml`) + teste (`tests/eval-golden.test.ts`) garantindo ID kebab-case único, cobertura mínima por categoria, `guardrail_flag=investment` + must_not_contain "compre/venda/aloque" em todas de investimento, `fallback=no_context` + "não tenho isso registrado" em fé/decisão.
 - [x] **E4.2** Harness `make eval` + CI gate — `eval/assertions.ts::evaluate` checa 6 dimensões (guardrail_flag, fallback, post_filter_category, must_contain_any, must_not_contain, requires_citation). `eval/runner.ts::runEval` puro orquestra question→chatRunner→evaluate→summarize. `eval/reporter.ts` agrega por categoria + custo total/médio + latência média e gera relatório texto + JSON. CLI em `backend/src/scripts/eval.ts` wirea services reais (createEmbedder/Reranker/LLMClient), conecta no DB, roda contra `processChat`, salva em `eval/reports/latest.json`, exit 1 se `passRate < EVAL_PASS_THRESHOLD` (default 0.8). `make eval` chama `pnpm --filter @second-brain/backend eval`. 18 testes novos (assertions + runEval com fake chatRunner).
 
-### E5 — Auth, paywall, billing (pendente)
-- [ ] E5.1 Supabase Auth + trigger `on_auth_user_created`
+### E5 — Auth, paywall, billing
+- [x] **E5.1** Supabase Auth + trigger `on_auth_user_created` — migration `0002_auth_trigger.sql` cria `handle_new_auth_user()` (SECURITY DEFINER, search_path=public) + trigger AFTER INSERT em `auth.users` que insere em `public.users(external_id=NEW.id::text, email, role='subscriber')` com `ON CONFLICT (external_id) DO NOTHING`. `backend/src/auth/jwt.ts::verifySupabaseJWT` faz HMAC-SHA256 com `node:crypto` (zero dep), valida alg=HS256/sub/exp/assinatura. Middleware `requireAuth` (`api/middleware/require-auth.ts`) lê `Authorization: Bearer`, verifica JWT, faz look-up em `public.users` por `external_id`, seta `c.set('user', AuthenticatedUser)`. Rota demo `GET /api/me` protegida retorna `{id, externalId, email, role}`. `SUPABASE_JWT_SECRET` no Zod config. 14 testes novos: 7 unit do JWT verify (round-trip, bad signature, expired, malformed, alg=none, missing sub) + 6 integração (trigger replica auth→public, 401s pra header faltando/malformed/sig inválida/user não-provisionado, 200 com sub válido).
 - [ ] E5.2 Middleware `requireAccess`
 - [ ] E5.3 Webhook idempotente de billing
 

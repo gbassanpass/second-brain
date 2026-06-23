@@ -3,6 +3,7 @@ import { logger } from 'hono/logger';
 import { type ChatRouterDeps, createChatRouter } from './api/chat.js';
 import { createCreatorsRouter } from './api/creators.js';
 import { health } from './api/health.js';
+import { createMeRouter } from './api/me.js';
 import { type EnqueueSyncFn, createSourcesRouter } from './api/sources.js';
 import { getConfig } from './config.js';
 import type { Database } from './db/client.js';
@@ -47,17 +48,21 @@ export interface AppDeps {
   getChatServices?: () => ChatServices;
   /** Lazy chat-related config — called only by `POST /api/chat`. */
   getChatConfig?: ChatRouterDeps['getConfig'];
+  /** Override the JWT secret used by `requireAuth`. Defaults to `getConfig().SUPABASE_JWT_SECRET`. */
+  jwtSecret?: string;
 }
 
 export function createApp(deps: AppDeps = {}) {
   const app = new Hono();
   const getDb = deps.getDb ?? getDbReal;
+  const jwtSecret = deps.jwtSecret ?? getConfig().SUPABASE_JWT_SECRET;
 
   app.use('*', logger());
 
   app.route('/api/health', health);
   app.route('/api/creators', createCreatorsRouter(getDb));
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
+  app.route('/api/me', createMeRouter({ getDb, jwtSecret }));
   app.route(
     '/api/chat',
     createChatRouter({
