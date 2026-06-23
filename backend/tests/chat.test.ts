@@ -356,6 +356,67 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(llm.calls).toHaveLength(2);
   });
 
+  it('anti-hallucination: regenerates with CITATION preamble when first reply has no [N]', async () => {
+    let n = 0;
+    llm = new FakeLLM({
+      reply: () => {
+        n++;
+        return n === 1
+          ? `${'Sobre as eleições, o cenário é complexo. '.repeat(8)}Mas isso é tudo o que sei.` // long, no [N]
+          : 'Conforme o trecho [1], o panorama eleitoral é dividido entre dois polos políticos.';
+      },
+    });
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      content: string;
+      guardrailFlag: string | null;
+      postFilter: { action: string; category: string | null; signals: string[] };
+    };
+    expect(body.postFilter.action).toBe('regenerated');
+    expect(body.postFilter.category).toBe('missing_citation');
+    expect(body.postFilter.signals).toContain('no_citation_marker');
+    expect(body.content).toContain('[1]');
+    // Missing-citation never escalates to the investment flag.
+    expect(body.guardrailFlag).toBeNull();
+
+    expect(llm.calls).toHaveLength(2);
+    const retryUser = llm.calls[1]?.messages.at(-1)?.content ?? '';
+    expect(retryUser).toContain('filtro anti-alucinação');
+  });
+
+  it('anti-hallucination: replaces with no_context canned when BOTH attempts have no [N]', async () => {
+    llm = new FakeLLM({
+      // Long-ish substantive reply with no citation marker, twice in a row.
+      reply: () => `${'O cenário é amplo e cheio de nuances. '.repeat(10)}Esse é o panorama.`,
+    });
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      content: string;
+      guardrailFlag: string | null;
+      fontes: unknown[];
+      postFilter: { action: string; category: string | null };
+    };
+    expect(body.postFilter.action).toBe('replaced');
+    expect(body.postFilter.category).toBe('missing_citation');
+    expect(body.content).toContain('Não tenho isso registrado');
+    // Canned refusal must not stand behind any source.
+    expect(body.fontes).toEqual([]);
+    expect(body.guardrailFlag).toBeNull();
+    expect(llm.calls).toHaveLength(2);
+  });
+
   it('routes to the fallback model for multi-question queries (and logs it)', async () => {
     llm = new FakeLLM();
     const app = buildApp();

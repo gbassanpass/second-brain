@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E3 — Guardrails (BLOQUEANTE)** (3/4 tarefas).
-- **Próxima tarefa:** **E3.4** — Anti-alucinação (sem contexto → "não tenho isso registrado") + tom neutro.
-- **Último commit:** `75c0912 E3.3: post-filter anti-recomendação + regenera 1x ou substitui canned`.
+- **Épico atual:** **E3 — Guardrails (BLOQUEANTE)** ✅ 4/4 tarefas — épico fechado, aguarda revisão humana.
+- **Próxima tarefa:** **E4.1** — `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).
+- **Último commit:** `d8aff43 docs(progress): record E3.3 commit hash`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -80,8 +80,8 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 ### E3 — Guardrails (BLOQUEANTE)
 - [x] **E3.1** Classificador anti-investimento — `rag/guardrails.ts::detectInvestmentIntent` com 8 action patterns + 7 financial-term groups; high/medium/low confidence; `messages.guardrail_flag='investment'` persistido no DB.
 - [x] **E3.2** Modo educacional forçado — `prompt.ts::EDUCATIONAL_MODE_PREAMBLE` prependido no user msg quando `guardrail.flag='investment'` (preserva cache do system); Claude real responde recusando recomendação, explicando cenário, listando perguntas-chave e fechando com o disclaimer.
-- [x] **E3.3** Filtro pós-geração — `rag/guardrails.ts::detectDirectRecommendation` cobre 4 padrões (imperativo+ativo, imperativo+%, "recomendo X comprar Y", "você deve+verbo financeiro"). No `runAssistantTurn`: se a 1ª resposta viola, regenera 1x com `REINFORCED_RETRY_PREAMBLE` (system+history byte-identical → cache mantém); se 2ª também viola, devolve `buildSafeEducationalReply(personaName)` canned. Usage/cost/latency somados nas 2 chamadas; defense-in-depth: post-filter sobe `messages.guardrail_flag='investment'` mesmo se o pre-classifier deixou passar. API expõe `postFilter:{action:'pass'|'regenerated'|'replaced', signals}`.
-- [ ] E3.4 Anti-alucinação + tom neutro
+- [x] **E3.3** Filtro pós-geração — `rag/guardrails.ts::detectDirectRecommendation` cobre 4 padrões (imperativo+ativo, imperativo+%, "recomendo X comprar Y", "você deve+verbo financeiro"). No `runAssistantTurn`: se a 1ª resposta viola, regenera 1x com `REINFORCED_RETRY_PREAMBLE` (system+history byte-identical → cache mantém); se 2ª também viola, devolve `buildSafeEducationalReply(personaName)` canned. Usage/cost/latency somados nas 2 chamadas; defense-in-depth: post-filter sobe `messages.guardrail_flag='investment'` mesmo se o pre-classifier deixou passar. API expõe `postFilter:{action:'pass'|'regenerated'|'replaced', category, signals}`.
+- [x] **E3.4** Anti-alucinação + tom neutro — `buildSystemPrompt` ganha linha fixa "Mantenha tom neutro e factual; não tome lado partidário ou militante.". `rag/guardrails.ts::detectMissingCitations` flagra resposta ≥200 chars sem `[N]` quando há chunks. Em turnos não-`investment`, `runAssistantTurn` roda 2º pass: se falta citação, regenera com `CITATION_RETRY_PREAMBLE`; se ainda falta, substitui pela canned "Não tenho isso registrado nos conteúdos de {name}" (idêntica à do no_context, com `fontes:[]`). `PostFilterDecision.category` distingue `recommendation` vs `missing_citation` — só o primeiro escala pra `guardrail_flag='investment'`.
 
 ### E4 — Avaliação (pendente)
 - [ ] E4.1 `eval/golden.yaml` (~30 perguntas)

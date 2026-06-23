@@ -9,9 +9,11 @@ import {
   type GuardrailFlag,
   detectDirectRecommendation,
   detectInvestmentIntent,
+  detectMissingCitations,
 } from '../rag/guardrails.js';
 import type { PersonaCard } from '../rag/persona.js';
 import {
+  buildCitationRetryArgs,
   buildLLMArgs,
   buildReinforcedRetryArgs,
   buildSafeEducationalReply,
@@ -60,15 +62,24 @@ export interface ChatSource {
 }
 
 /**
- * What the post-generation filter (E3.3) did to the reply.
- *   - `pass`: first attempt was clean.
+ * What the post-generation filter did to the reply.
+ *   - `pass`: every check was clean.
  *   - `regenerated`: first attempt violated, second attempt passed.
- *   - `replaced`: both attempts violated → canned educational reply served.
+ *   - `replaced`: both attempts violated → canned reply served.
  */
 export type PostFilterAction = 'pass' | 'regenerated' | 'replaced';
 
+/**
+ * Which post-filter pass triggered.
+ *   - `recommendation`: direct buy/sell/allocate language (E3.3).
+ *   - `missing_citation`: substantive reply with no [N] grounding (E3.4).
+ */
+export type PostFilterCategory = 'recommendation' | 'missing_citation';
+
 export interface PostFilterDecision {
   action: PostFilterAction;
+  /** `null` only when `action='pass'`. */
+  category: PostFilterCategory | null;
   /** Pattern names hit across attempts (e.g. ["imperative_asset","you_should"]). */
   signals: string[];
 }
@@ -195,10 +206,10 @@ export async function processChat(
   });
 
   // Defense in depth: if the post-filter caught a recommendation the
-  // pre-classifier missed, still log the message as 'investment' so eval +
-  // analytics see it as a guardrail event.
+  // pre-classifier missed, still log the message as 'investment'. The
+  // missing-citation path (E3.4) is NOT investment — leave the flag null.
   const effectiveGuardrailFlag: GuardrailFlag =
-    guardrail.flag ?? (assistant.postFilter.action !== 'pass' ? 'investment' : null);
+    guardrail.flag ?? (assistant.postFilter.category === 'recommendation' ? 'investment' : null);
 
   const assistantInsert = await db
     .insert(messages)
@@ -337,7 +348,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       usage: null,
       costUsd: 0,
       latencyMs: 0,
-      postFilter: { action: 'pass', signals: [] },
+      postFilter: { action: 'pass', category: null, signals: [] },
     };
   }
 
@@ -370,67 +381,120 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
   const start = Date.now();
   const first = await args.llm.complete(llmArgs);
   let latencyMs = Date.now() - start;
+  const modelOf = (r: typeof first) => r.model || args.routing.model;
 
-  const firstDetection = detectDirectRecommendation(first.content);
-  if (!firstDetection.violated) {
+  // Pass 1 — recommendation post-filter (E3.3).
+  const recFirst = detectDirectRecommendation(first.content);
+  if (recFirst.violated) {
+    console.warn(
+      `[chat] post-filter category=recommendation action=regenerate signals=${recFirst.matches.join(',')}`,
+    );
+    const retryStart = Date.now();
+    const second = await args.llm.complete(buildReinforcedRetryArgs(llmArgs));
+    latencyMs += Date.now() - retryStart;
+    const recSecond = detectDirectRecommendation(second.content);
+    const usage = sumUsage(first.usage, second.usage);
+    const cost =
+      estimateCostUsd(modelOf(first), first.usage) + estimateCostUsd(modelOf(second), second.usage);
+    if (!recSecond.violated) {
+      return {
+        content: second.content,
+        fontes,
+        fallback: null,
+        model: modelOf(second),
+        usage,
+        costUsd: cost,
+        latencyMs,
+        postFilter: {
+          action: 'regenerated',
+          category: 'recommendation',
+          signals: recFirst.matches,
+        },
+      };
+    }
+    console.error(
+      `[chat] post-filter category=recommendation action=replaced first=${recFirst.matches.join(',')} second=${recSecond.matches.join(',')}`,
+    );
     return {
-      content: first.content,
+      content: buildSafeEducationalReply(args.persona.name),
       fontes,
       fallback: null,
-      model: first.model || args.routing.model,
-      usage: first.usage,
-      costUsd: estimateCostUsd(first.model || args.routing.model, first.usage),
+      model: modelOf(second),
+      usage,
+      costUsd: cost,
       latencyMs,
-      postFilter: { action: 'pass', signals: [] },
+      postFilter: {
+        action: 'replaced',
+        category: 'recommendation',
+        signals: Array.from(new Set([...recFirst.matches, ...recSecond.matches])),
+      },
     };
   }
 
-  // Regenerate once with a reinforced preamble. The system prompt + history
-  // stay byte-identical so Anthropic prompt caching still pays.
-  console.warn(
-    `[chat] post-filter slug=${args.cfg.llmModel} action=regenerate ` +
-      `signals=${firstDetection.matches.join(',')}`,
-  );
-  const retryArgs = buildReinforcedRetryArgs(llmArgs);
-  const retryStart = Date.now();
-  const second = await args.llm.complete(retryArgs);
-  latencyMs += Date.now() - retryStart;
-
-  const totalUsage = sumUsage(first.usage, second.usage);
-  const totalCost =
-    estimateCostUsd(first.model || args.routing.model, first.usage) +
-    estimateCostUsd(second.model || args.routing.model, second.usage);
-  const model = second.model || first.model || args.routing.model;
-
-  const secondDetection = detectDirectRecommendation(second.content);
-  if (!secondDetection.violated) {
-    return {
-      content: second.content,
-      fontes,
-      fallback: null,
-      model,
-      usage: totalUsage,
-      costUsd: totalCost,
-      latencyMs,
-      postFilter: { action: 'regenerated', signals: firstDetection.matches },
-    };
+  // Pass 2 — missing-citation post-filter (E3.4). Skipped on investment
+  // turns because the educational reply is allowed to redirect without
+  // citing every claim.
+  if (args.guardrail.flag === null) {
+    const citFirst = detectMissingCitations(first.content, { hadChunks: fontes.length > 0 });
+    if (citFirst.violated) {
+      console.warn('[chat] post-filter category=missing_citation action=regenerate');
+      const retryStart = Date.now();
+      const second = await args.llm.complete(buildCitationRetryArgs(llmArgs));
+      latencyMs += Date.now() - retryStart;
+      const citSecond = detectMissingCitations(second.content, { hadChunks: fontes.length > 0 });
+      const usage = sumUsage(first.usage, second.usage);
+      const cost =
+        estimateCostUsd(modelOf(first), first.usage) +
+        estimateCostUsd(modelOf(second), second.usage);
+      if (!citSecond.violated) {
+        return {
+          content: second.content,
+          fontes,
+          fallback: null,
+          model: modelOf(second),
+          usage,
+          costUsd: cost,
+          latencyMs,
+          postFilter: {
+            action: 'regenerated',
+            category: 'missing_citation',
+            signals: ['no_citation_marker'],
+          },
+        };
+      }
+      // Anti-hallucination fallback: hand back the same canned refusal the
+      // no_context path serves. Clear `fontes` so the message log doesn't
+      // imply we stood behind any chunk.
+      console.error(
+        '[chat] post-filter category=missing_citation action=replaced — serving no_context canned',
+      );
+      return {
+        content: `Não tenho isso registrado nos conteúdos de ${args.persona.name}.`,
+        fontes: [],
+        fallback: null,
+        model: modelOf(second),
+        usage,
+        costUsd: cost,
+        latencyMs,
+        postFilter: {
+          action: 'replaced',
+          category: 'missing_citation',
+          signals: ['no_citation_marker'],
+        },
+      };
+    }
   }
 
-  console.error(
-    `[chat] post-filter action=replaced — both attempts violated. first=${firstDetection.matches.join(',')} second=${secondDetection.matches.join(',')}`,
-  );
+  // All passes clean.
   return {
-    content: buildSafeEducationalReply(args.persona.name),
+    content: first.content,
     fontes,
     fallback: null,
-    model,
-    usage: totalUsage,
-    costUsd: totalCost,
+    model: modelOf(first),
+    usage: first.usage,
+    costUsd: estimateCostUsd(modelOf(first), first.usage),
     latencyMs,
-    postFilter: {
-      action: 'replaced',
-      signals: Array.from(new Set([...firstDetection.matches, ...secondDetection.matches])),
-    },
+    postFilter: { action: 'pass', category: null, signals: [] },
   };
 }
 

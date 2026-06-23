@@ -146,6 +146,35 @@ export function detectDirectRecommendation(rawText: string): RecommendationDetec
   return { violated: matches.length > 0, matches };
 }
 
+/**
+ * Anti-hallucination post-check (E3.4): when the orchestrator handed chunks
+ * to the LLM, a substantive reply MUST include at least one `[N]` citation
+ * marker. Otherwise the model is asserting facts without grounding — exactly
+ * what docs/05 §Guardrails §3 forbids.
+ *
+ * `minLength` is a guard against false positives on short refusals
+ * ("não tenho isso registrado") or the canned safe-educational reply.
+ * Default 200 chars covers anything resembling an actual answer.
+ */
+export interface CitationCheck {
+  violated: boolean;
+  reason: 'no_citation_marker' | null;
+}
+
+const CITATION_RE = /\[\d+\]/;
+
+export function detectMissingCitations(
+  rawText: string,
+  opts: { hadChunks: boolean; minLength?: number },
+): CitationCheck {
+  const minLength = opts.minLength ?? 200;
+  if (!opts.hadChunks) return { violated: false, reason: null };
+  const text = rawText.trim();
+  if (text.length < minLength) return { violated: false, reason: null };
+  if (CITATION_RE.test(text)) return { violated: false, reason: null };
+  return { violated: true, reason: 'no_citation_marker' };
+}
+
 export function detectInvestmentIntent(rawQuery: string): GuardrailDecision {
   const query = rawQuery.normalize('NFC');
   if (!query.trim()) {

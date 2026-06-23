@@ -47,7 +47,7 @@
 - [x] **E3.2** Modo educacional forçado + disclaimer quando detectado; `guardrail_flag='investment'`.
 - [x] **E3.3** Filtro pós-geração que bloqueia recomendação direta ("compre/venda/aloque X%").
   - *Aceite:* nenhuma resposta do eval de investimento contém recomendação direta.
-- [ ] **E3.4** Guardrail anti-alucinação (sem contexto → "não tenho isso registrado") e tom neutro.
+- [x] **E3.4** Guardrail anti-alucinação (sem contexto → "não tenho isso registrado") e tom neutro.
 
 ### Épico E4 — Avaliação
 - [ ] **E4.1** `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).

@@ -71,20 +71,52 @@ export const REINFORCED_RETRY_PREAMBLE = [
 ].join('\n');
 
 /**
+ * Prepended on the regeneration attempt when the anti-hallucination check
+ * (E3.4) rejects the first reply — i.e. the model gave a substantive answer
+ * without citing any chunk. Forces it to either ground each claim with `[N]`
+ * or fall back to the "não tenho isso registrado" refusal.
+ */
+export const CITATION_RETRY_PREAMBLE = [
+  '⚠️ SUA RESPOSTA ANTERIOR foi REJEITADA pelo filtro anti-alucinação.',
+  'Motivo: você fez afirmações factuais sem citar nenhum trecho com [N].',
+  '',
+  'REESCREVA seguindo estas regras ESTRITAS:',
+  '- Toda afirmação factual DEVE referenciar um trecho via o marcador [N]',
+  '  (ex.: "[1]", "[2]").',
+  '- Se os TRECHOS não cobrem a pergunta, responda apenas:',
+  '  "não tenho isso registrado".',
+  '- Não invente fatos, números ou citações.',
+].join('\n');
+
+/**
  * Builds the regeneration `LLMCompleteArgs` from the original ones: keeps
  * system/history intact (so prompt cache stays valid) and replaces only the
  * last user message with the reinforced version. Caller has already detected
  * a violation via `detectDirectRecommendation`.
  */
 export function buildReinforcedRetryArgs(original: LLMCompleteArgs): LLMCompleteArgs {
+  return prependRetryPreamble(original, REINFORCED_RETRY_PREAMBLE);
+}
+
+/**
+ * Same shape as `buildReinforcedRetryArgs` but for the anti-hallucination
+ * retry (E3.4). Keeps system/history byte-identical so the cache holds.
+ */
+export function buildCitationRetryArgs(original: LLMCompleteArgs): LLMCompleteArgs {
+  return prependRetryPreamble(original, CITATION_RETRY_PREAMBLE);
+}
+
+function prependRetryPreamble(original: LLMCompleteArgs, preamble: string): LLMCompleteArgs {
   const last = original.messages.at(-1);
   if (!last || last.role !== 'user') {
-    throw new Error('buildReinforcedRetryArgs: expected last message to be a user message');
+    throw new Error('prependRetryPreamble: expected last message to be a user message');
   }
-  const reinforcedContent = `${REINFORCED_RETRY_PREAMBLE}\n\n${last.content}`;
   return {
     ...original,
-    messages: [...original.messages.slice(0, -1), { role: 'user', content: reinforcedContent }],
+    messages: [
+      ...original.messages.slice(0, -1),
+      { role: 'user', content: `${preamble}\n\n${last.content}` },
+    ],
   };
 }
 
@@ -139,6 +171,7 @@ export function buildSystemPrompt(card: PersonaCard): string {
     '- Se os trechos não cobrirem a pergunta, diga: "não tenho isso registrado".',
     '- Cite a fonte usando o marcador correspondente: [1], [2], etc.',
     '- Não invente fatos, números ou citações.',
+    '- Mantenha tom neutro e factual; não tome lado partidário ou militante.',
     '- Deixe claro ao usuário que ele conversa com a mente digital de',
     `  ${card.name}, não com a pessoa real.`,
     disclaimer ? '' : null,

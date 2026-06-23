@@ -30,6 +30,7 @@ describe('buildSystemPrompt', () => {
     expect(sys).toContain('- explicar acontecimentos sem viés');
     expect(sys).toContain('- recomendar compra/venda de ativos');
     expect(sys).toContain('"não tenho isso registrado"');
+    expect(sys).toContain('tom neutro e factual');
     expect(sys).toContain('mente digital');
     expect(sys).toContain('Disclaimer: Conteúdo educativo');
   });

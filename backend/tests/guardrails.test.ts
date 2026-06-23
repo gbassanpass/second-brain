@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { detectDirectRecommendation, detectInvestmentIntent } from '../src/rag/guardrails.js';
-import { EDUCATIONAL_MODE_PREAMBLE, REINFORCED_RETRY_PREAMBLE } from '../src/rag/prompt.js';
+import {
+  detectDirectRecommendation,
+  detectInvestmentIntent,
+  detectMissingCitations,
+} from '../src/rag/guardrails.js';
+import {
+  CITATION_RETRY_PREAMBLE,
+  EDUCATIONAL_MODE_PREAMBLE,
+  REINFORCED_RETRY_PREAMBLE,
+} from '../src/rag/prompt.js';
 
 describe('detectInvestmentIntent', () => {
   const HIGH_CONFIDENCE_QUERIES = [
@@ -145,5 +153,55 @@ describe('detectDirectRecommendation (E3.3 post-filter)', () => {
   it('is pure / deterministic', () => {
     const t = 'Venda dólar hoje.';
     expect(detectDirectRecommendation(t)).toEqual(detectDirectRecommendation(t));
+  });
+});
+
+describe('detectMissingCitations (E3.4 anti-hallucination)', () => {
+  const SUBSTANTIVE = `${'a'.repeat(180)} fato factual sem citação.`; // > 200 chars, no [N]
+
+  it('flags substantive replies with no [N] marker when chunks were retrieved', () => {
+    const d = detectMissingCitations(SUBSTANTIVE, { hadChunks: true });
+    expect(d.violated).toBe(true);
+    expect(d.reason).toBe('no_citation_marker');
+  });
+
+  it('passes when the reply cites at least one chunk', () => {
+    const d = detectMissingCitations(`${SUBSTANTIVE} [1]`, { hadChunks: true });
+    expect(d.violated).toBe(false);
+    expect(d.reason).toBeNull();
+  });
+
+  it('passes when no chunks were retrieved (orchestrator chose no_context path)', () => {
+    const d = detectMissingCitations(SUBSTANTIVE, { hadChunks: false });
+    expect(d.violated).toBe(false);
+  });
+
+  it('passes for short replies — refusals / canned messages must not trip the filter', () => {
+    expect(detectMissingCitations('Não tenho isso registrado.', { hadChunks: true }).violated).toBe(
+      false,
+    );
+    expect(
+      detectMissingCitations('Conteúdo educativo; não é recomendação de investimento.', {
+        hadChunks: true,
+      }).violated,
+    ).toBe(false);
+  });
+
+  it('respects a custom minLength', () => {
+    const short = 'Curto sem citação.';
+    expect(detectMissingCitations(short, { hadChunks: true, minLength: 10 }).violated).toBe(true);
+    expect(detectMissingCitations(short, { hadChunks: true, minLength: 1000 }).violated).toBe(
+      false,
+    );
+  });
+
+  it('handles empty input gracefully', () => {
+    expect(detectMissingCitations('', { hadChunks: true }).violated).toBe(false);
+    expect(detectMissingCitations('   ', { hadChunks: true }).violated).toBe(false);
+  });
+
+  it('CITATION_RETRY_PREAMBLE references the [N] marker and the refusal fallback', () => {
+    expect(CITATION_RETRY_PREAMBLE).toContain('[N]');
+    expect(CITATION_RETRY_PREAMBLE).toContain('não tenho isso registrado');
   });
 });
