@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E5 — Auth, paywall e billing** (2/3 tarefas).
 - **Próxima tarefa:** **E5.3** — Webhook idempotente de billing (`POST /api/billing/webhook`); cria/atualiza `subscriptions` (Stripe MVP).
-- **Último commit:** `b94c645 docs(progress): record E5.1 commit hash`.
+- **Último commit:** `975b9e6 E5.2: middleware requireAccess (paywall) + GET /api/c/:slug/access`.
 
 > 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `GET /api/c/:slug/access` (pré-flight do frontend). Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
 
