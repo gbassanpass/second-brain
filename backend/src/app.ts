@@ -68,7 +68,7 @@ export function createApp(deps: AppDeps = {}) {
   app.use('*', logger());
 
   app.route('/api/health', health);
-  app.route('/api/creators', createCreatorsRouter(getDb));
+  app.route('/api/creators', createCreatorsRouter({ getDb, jwtSecret }));
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
   app.route('/api/me', createMeRouter({ getDb, jwtSecret }));
   app.route('/api/c', createAccessRouter({ getDb, jwtSecret }));

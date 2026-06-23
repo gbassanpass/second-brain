@@ -7,10 +7,10 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E6 — Frontend MVP** (3/5 tarefas).
-- **Próxima tarefa:** **E6.4** — Studio do criador (`/studio`): conectar fontes, status de indexação, editor da Persona Card, "testar o clone". (E6.5 = analytics cards depois.)
+- **Épico atual:** **E6 — Frontend MVP** (4/5 tarefas).
+- **Próxima tarefa:** **E6.5** — Analytics cards (`/studio`): nº de conversas, custo total/médio, perguntas top, taxa de guardrail. Dados já estão em `messages` (tokens/custo/guardrail_flag) — falta o endpoint de agregação + os cards. **Fim do épico E6 / da Fase 0.**
 - **Último commit:** `a3444a4 E6.3: login (Supabase) + auth no chat + paywall + checkout`.
-- **Testes:** 316 verdes em 36 arquivos. Lint + typecheck verdes.
+- **Testes:** 326 verdes em 38 arquivos. Lint + typecheck verdes.
 
 > ✅ **Follow-up E5.2 fechado no E6.3**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` (slug resolvido do body via `resolveSlug` async; userId vem do JWT, creatorId do `access`). Os 13 testes de chat foram atualizados p/ provisionar subscriber+assinatura ativa e mandar JWT (+2 testes novos: 401 sem JWT, 402 sem assinatura).
 > 🟡 **Follow-ups visuais E6.2**: (1) **markdown** — respostas vêm em markdown mas a UI renderiza texto puro (`whitespace-pre-wrap`); (2) **streaming** — backend `/api/chat` é não-streaming, UI usa "pensando". Polimento, não bloqueiam aceite.
@@ -98,6 +98,16 @@ Login + auth no chat + paywall + checkout prontos. **Verificado end-to-end local
 - **Env**: `.env.example` ganhou `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `STRIPE_PRICE_ID`, `PUBLIC_APP_URL`. Para dev usar o checkout Fake: `BILLING_PROVIDER=fake`.
 - **Testes**: 11 novos backend (5 checkout-api + 4 Stripe createCheckoutSession + 2 chat auth) = 296 backend. Frontend segue 20 (lib puro). **Total 316 verdes em 36 arquivos.** `next build` limpo (7 rotas, 3 proxies).
 
+## Marco do E6.4 (referência rápida)
+
+Studio do criador `/studio/[slug]` pronto, gated a creator/operator. **Verificado end-to-end local**: page 200; operator vê persona + 5 docs/10 chunks; subscriber → 403; e-mail/role via `/api/me`.
+- **Role gating backend**: middleware `requireRole(...roles)` (lê `c.get('user').role`, 403 se fora; mount depois do `requireAuth`). Aplicado **por-método** nas rotas do creators router (via `router.get(path, ...studioGate, handler)`) p/ não gatear o público `GET /:slug` nem o `POST /:slug/documents` da ingestão.
+- **Endpoints novos** (gated): `GET /api/creators/:slug/sources` (lista content_sources + status) e `GET /api/creators/:slug/documents` (docs + `chunkCount` via leftJoin/groupBy). `services/creator.ts::listSources/listDocuments`. **Persona GET/PUT** agora também gated (carregam do/dont/catchphrases que o landing público esconde de propósito).
+- **Frontend**: `lib/studio.ts` puro (`canUseStudio`, `personaToForm`/`formToPersona` arrays↔linhas, `personaFormError` espelha o Zod) + clients (`fetchMe/fetchPersonaForm/savePersona/fetchSources/fetchDocuments`). `StudioRoom` (client): gate `loading/anon/forbidden/ready/error` via `useSession` + `/api/me`; editor de Persona (campos + textareas linha-a-linha, salvar), seções Fontes (badge de status) e Conteúdo indexado (chunkCount), botão "Testar o clone" → `/c/[slug]/chat`. Página Server Component faz `fetchCreator` (nome) → `notFound()`. 4 proxies BFF novos (`/api/me`, `/api/creators/[slug]/persona` GET+PUT, `/sources`, `/documents`).
+- **Test churn**: `persona.test.ts` atualizado p/ autenticar como operator (+ teste 401/403). Novo `creators-studio-api.test.ts` (gating 401/403/200 + chunkCount).
+- **Follow-ups**: lockdown de `POST /:slug/documents` + `POST /sources/:id/sync` (usados por tooling de ingestão — gatear exige token no CLI); "conectar fontes" via UI é F1.1 (Phyllo).
+- **Testes**: 10 novos (3 studio-api + 1 persona-auth backend + 6 `lib/studio` frontend). **Total 326 verdes em 38 arquivos.** `next build` limpo (8 rotas + 7 proxies).
+
 ## ▶️ Roteiro de retomada padrão
 
 1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
@@ -149,7 +159,7 @@ Login + auth no chat + paywall + checkout prontos. **Verificado end-to-end local
 - [x] **E6.1** Landing `/c/[slug]` — ver marco abaixo.
 - [x] **E6.2** Chat `/c/[slug]/chat` (estilo ChatGPT) — ver marco abaixo.
 - [x] **E6.3** Login (Supabase) + auth no `/api/chat` + paywall + checkout — ver marco abaixo.
-- [ ] E6.4 Studio `/studio`
+- [x] **E6.4** Studio `/studio/[slug]` (persona editor + fontes/conteúdo + testar clone, gated) — ver marco abaixo.
 - [ ] E6.5 Analytics cards
 
 ## Decisões consolidadas (não revisitar sem motivo forte)

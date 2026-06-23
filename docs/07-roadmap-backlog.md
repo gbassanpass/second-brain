@@ -66,7 +66,7 @@
 - [x] **E6.1** Landing do clone (`/c/[slug]`) com exemplos e CTA + disclaimer.
 - [x] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming. *(streaming e markdown ficaram como follow-up — backend `/api/chat` é não-streaming. Auth no chat foi wireada no E6.3.)*
 - [x] **E6.3** Paywall/checkout e retorno validando assinatura. *(Login Supabase magic link + auth wireada no `/api/chat` (fechou follow-up E5.2) + gating de paywall + checkout via adapter. Stripe real só fumaça — caminho Fake verificado end-to-end local.)*
-- [ ] **E6.4** Studio do criador (`/studio`): fontes, status, editor de Persona, analytics, "testar clone".
+- [x] **E6.4** Studio do criador (`/studio/[slug]`): fontes+status, conteúdo indexado, editor de Persona, "testar clone". Gated a creator/operator. *(Analytics → E6.5. "Conectar fontes" via UI → F1.1 Phyllo; no MVP a ingestão é via pipeline/CLI. Lockdown de POST documents + sources sync = follow-up.)*
 - [ ] **E6.5** Analytics cards (conversas, custo, perguntas top, taxa de guardrail).
 
 > **Definition of Done da Fase 0:** Fausto indexado; chat responde no estilo dele citando fontes; guardrail de investimento passa no eval; paywall funcionando; custo/conversa < US$0,05; logs completos.
