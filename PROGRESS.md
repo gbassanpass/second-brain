@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E0 — Scaffolding & infra** (3/4 tarefas concluídas).
-- **Próxima tarefa:** **E0.4** — Adapters (`llm/`, `embeddings/`, `rerank/`, `transcription/`) + `connectors/` (interface `ContentConnector` + `ManualUploadConnector`), com implementação real + fake para cada um.
-- **Último commit:** `cc6a65e E0.3: config tipada Zod + boot fail-fast + fakes em modo test`.
+- **Épico atual concluído:** **E0 — Scaffolding & infra** (4/4 tarefas) ✅. Pronto para revisão antes de iniciar E1.
+- **Próximo épico:** **E1 — Ingestão & second brain**. Próxima tarefa: **E1.1** (Schema Drizzle + tipos Zod com `drizzle-zod`).
+- **Último commit:** `E0.4: adapters (LLM/embeddings/rerank/transcription) + ManualUploadConnector + Biome no-restricted-imports`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -22,6 +22,18 @@ Tudo da infra de DB está em pé e testado:
 - Bucket `creator-content` no Storage (private, 500 MiB, MIME texto/áudio/vídeo).
 - Migrations: `0000_curly_the_initiative.sql` (gerada Drizzle + extensions no topo) e `0001_tsv_and_storage.sql` (trigger + bucket).
 - Containers extras de outro projeto (`agent-infra-docker-*`) seguem em pé sem conflito.
+
+## Marco do E0.4 (referência rápida)
+
+Camada de provedores pronta (toda em TS, sem SDK de terceiro):
+- **LLM** (`backend/src/llm/`): `LLMClient` + `AnthropicLLM` (fetch → `/v1/messages`, com prompt-caching via `cache_control`) + `FakeLLM` (eco do último user, tokens estimados por caracteres).
+- **Embeddings** (`backend/src/embeddings/`): `Embedder` + `OpenAIEmbedder` + `FakeEmbedder` (sha256 → vetor 1536 unit-normed, determinístico).
+- **Rerank** (`backend/src/rerank/`): `Reranker` + `CohereReranker` (`/v2/rerank`) + `FakeReranker` (Jaccard sobre tokens, estável em empate).
+- **Transcrição** (`backend/src/transcription/`): `Transcriber` + `DeepgramTranscriber` (Nova-3, paragraphs + diarize) + `FakeTranscriber` (hash do buffer / eco da URL).
+- **Connector** (`backend/src/connectors/`): `ContentConnector` + `ManualUploadConnector` (lê `data/fausto/`, mapeia subdir → kind, parser SRT/VTT, envelope JSON validado por Zod, hash sha256 do path relativo como `externalId`) + `FakeConnector` para fixtures.
+- **Factories** por env (`config.LLM_PROVIDER` etc): trocar provedor é trocar 1 env.
+- **Biome `noRestrictedImports`** bloqueia SDKs (`@anthropic-ai/sdk`, `openai`, `cohere-ai`, `@deepgram/sdk`, `assemblyai`, `elevenlabs`, `stripe`) fora dos diretórios de adapter (`llm/`, `embeddings/`, `rerank/`, `transcription/`, `voice/`, `billing/`).
+- Testes: 51 (config 7 + llm 8 + embeddings 9 + rerank 7 + transcription 9 + connectors 8 + health 2 + frontend smoke 1).
 
 ## ▶️ Roteiro de retomada padrão
 
@@ -36,7 +48,7 @@ Tudo da infra de DB está em pé e testado:
 - [x] **E0.1** Monorepo pnpm (backend Hono + frontend Next.js + Biome + Vitest + Makefile + healthcheck).
 - [x] **E0.2** Supabase CLI + Drizzle schema (tabelas/índices do doc 04) + bucket de Storage.
 - [x] **E0.3** Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env.
-- [ ] **E0.4** Adapters (llm/embeddings/rerank/transcription + connectors `ManualUpload`) com fakes para testes.
+- [x] **E0.4** Adapters (llm/embeddings/rerank/transcription + connectors `ManualUpload`) com fakes para testes.
 
 ### E1 — Ingestão & second brain (pendente)
 - [ ] E1.1 Schema Drizzle + tipos Zod

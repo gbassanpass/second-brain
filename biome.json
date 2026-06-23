@@ -38,6 +38,25 @@
       "arrowParentheses": "always"
     }
   },
+  "overrides": [
+    {
+      "include": [
+        "backend/src/llm/**",
+        "backend/src/embeddings/**",
+        "backend/src/rerank/**",
+        "backend/src/transcription/**",
+        "backend/src/voice/**",
+        "backend/src/billing/**"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    }
+  ],
   "linter": {
     "enabled": true,
     "rules": {
@@ -49,6 +68,22 @@
       "style": {
         "noNonNullAssertion": "warn",
         "useImportType": "error"
+      },
+      "nursery": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "@anthropic-ai/sdk": "Provider SDKs must only be imported from backend/src/llm/. See CLAUDE.md §Convenções.",
+              "openai": "Provider SDKs must only be imported from backend/src/embeddings/ or backend/src/llm/. See CLAUDE.md §Convenções.",
+              "cohere-ai": "Provider SDKs must only be imported from backend/src/rerank/. See CLAUDE.md §Convenções.",
+              "@deepgram/sdk": "Provider SDKs must only be imported from backend/src/transcription/. See CLAUDE.md §Convenções.",
+              "assemblyai": "Provider SDKs must only be imported from backend/src/transcription/. See CLAUDE.md §Convenções.",
+              "elevenlabs": "Provider SDKs must only be imported from backend/src/voice/. See CLAUDE.md §Convenções.",
+              "stripe": "Provider SDKs must only be imported from backend/src/billing/. See CLAUDE.md §Convenções."
+            }
+          }
+        }
       },
       "complexity": {
         "noUselessTypeConstraint": "error"

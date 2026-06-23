@@ -13,7 +13,7 @@
   - *Aceite:* `make migrate` roda `drizzle-kit migrate` contra `DATABASE_URL_DIRECT` e aplica todas as tabelas/índices; `\d chunks` no psql mostra HNSW em `embedding` e GIN em `tsv`. Bucket `creator-content` criado no Supabase Storage via migration/script.
 - [x] **E0.3** Camada de config (.env do doc 08) + carregamento tipado com **Zod** (`backend/src/config.ts`).
   - *Aceite:* app falha no boot com mensagem clara se faltar env obrigatória; envs de provedor têm valores default seguros em modo `test` (usam fakes).
-- [ ] **E0.4** Adaptadores de provedor em TS com interface (`llm/`, `embeddings/`, `rerank/`, `transcription/`) + camada `connectors/` (interface `ContentConnector` + `ManualUploadConnector` que lê `data/fausto/`). Cada um tem implementação real + fake para testes.
+- [x] **E0.4** Adaptadores de provedor em TS com interface (`llm/`, `embeddings/`, `rerank/`, `transcription/`) + camada `connectors/` (interface `ContentConnector` + `ManualUploadConnector` que lê `data/fausto/`). Cada um tem implementação real + fake para testes.
   - *Aceite:* trocar provedor é mudar 1 env/factory; testes do RAG (E2) usam fakes determinísticos; chamar SDK fora do adapter quebra o lint (regra do Biome / convenção revisada em PR).
 
 ### Épico E1 — Ingestão & second brain
