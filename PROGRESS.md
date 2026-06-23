@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E3 — Guardrails (BLOQUEANTE)** (2/4 tarefas).
 - **Próxima tarefa:** **E3.3** — Filtro pós-geração que bloqueia/edita respostas com recomendação direta ("compre/venda/aloque X%"); regenera se violar.
-- **Último commit:** `E3.2: modo educacional + EDUCATIONAL_MODE_PREAMBLE no user msg`.
+- **Último commit:** `46199b3 E3.2: modo educacional + EDUCATIONAL_MODE_PREAMBLE no user msg`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
