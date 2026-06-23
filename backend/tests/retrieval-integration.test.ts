@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { closeDb, getDb } from '../src/db/client.js';
 import { chunks, creators, documents } from '../src/db/schema.js';
 import { FakeEmbedder } from '../src/embeddings/fake.js';
-import { hybridSearch } from '../src/rag/retrieval.js';
+import { hybridSearch, retrieveAndRerank } from '../src/rag/retrieval.js';
+import { FakeReranker } from '../src/rerank/fake.js';
 import { ensureCreatorBySlug, upsertDocument } from '../src/services/documents.js';
 
 const DB_URL =
@@ -152,6 +153,64 @@ describe.skipIf(!dbReachable)('hybridSearch (integration)', () => {
     await expect(
       hybridSearch(db, { creatorId, query: 'x', queryEmbedding: [0.1, 0.2] }),
     ).rejects.toThrow(/dims/);
+  });
+
+  it('retrieveAndRerank: returns reranked hits above the threshold', async () => {
+    const db = getDb(DB_URL);
+    const queryEmbedding = embeddings[2];
+    if (!queryEmbedding) throw new Error('seed embeddings missing');
+    const res = await retrieveAndRerank(db, new FakeReranker(), {
+      creatorId,
+      // Strong textual + semantic overlap with chunks[2].
+      query: 'eleições presidenciais brasileiras candidatos',
+      queryEmbedding,
+      topK: 3,
+      rerankScoreThreshold: 0.05,
+    });
+    expect(res.fallback).toBeNull();
+    expect(res.hits.length).toBeGreaterThan(0);
+    expect(res.hits.length).toBeLessThanOrEqual(3);
+    // Reranker ordering must be respected (descending score, stable on ties).
+    for (let i = 1; i < res.hits.length; i++) {
+      expect(res.hits[i - 1]?.rerankScore ?? 0).toBeGreaterThanOrEqual(
+        res.hits[i]?.rerankScore ?? -1,
+      );
+    }
+    // Top hit should be the chunk about elections.
+    expect(res.hits[0]?.chunkId).toBe(chunkIds[2]);
+    // RRF and rerank scores propagate from both stages.
+    expect(res.hits[0]?.rrfScore).toBeGreaterThan(0);
+    expect(res.hits[0]?.rerankScore).toBeGreaterThanOrEqual(0.05);
+  });
+
+  it('retrieveAndRerank: surfaces fallback="no_context" when every score is below threshold', async () => {
+    const db = getDb(DB_URL);
+    const queryEmbedding = embeddings[0];
+    if (!queryEmbedding) throw new Error('seed embeddings missing');
+    const res = await retrieveAndRerank(db, new FakeReranker(), {
+      creatorId,
+      query: 'petróleo oriente',
+      queryEmbedding,
+      topK: 5,
+      // Impossible threshold — FakeReranker's Jaccard ≤ 1 always.
+      rerankScoreThreshold: 1.01,
+    });
+    expect(res.fallback).toBe('no_context');
+    expect(res.hits).toEqual([]);
+  });
+
+  it('retrieveAndRerank: surfaces fallback="no_context" when hybrid returns nothing for this creator', async () => {
+    const db = getDb(DB_URL);
+    const queryEmbedding = embeddings[0];
+    if (!queryEmbedding) throw new Error('seed embeddings missing');
+    const res = await retrieveAndRerank(db, new FakeReranker(), {
+      // creator that exists in another test but with no chunks of its own — use a random uuid.
+      creatorId: '11111111-1111-4111-8111-111111111111',
+      query: 'qualquer coisa',
+      queryEmbedding,
+    });
+    expect(res.fallback).toBe('no_context');
+    expect(res.hits).toEqual([]);
   });
 
   it('returns ranks as plain numbers (not pg numeric strings)', async () => {

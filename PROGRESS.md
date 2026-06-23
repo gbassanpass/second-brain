@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E2 — Núcleo RAG** (1/6 tarefas). E1 fechado (E1.5 transcrição é opcional MVP, pulada).
-- **Próxima tarefa:** **E2.2** — Rerank (Cohere) top-50 → top-5 com limiar de score (abaixo → "não tenho isso registrado").
-- **Último commit:** `E2.1: hybridSearch (vetorial + tsvector + RRF)`.
+- **Épico atual:** **E2 — Núcleo RAG** (2/6 tarefas).
+- **Próxima tarefa:** **E2.3** — Persona Card (modelo + seed do Fausto + endpoint GET/PUT).
+- **Último commit:** `E2.2: retrieveAndRerank + threshold + no_context fallback`.
 
 > ✅ **Conteúdo do Fausto indexado**: 5 transcripts → 10 chunks com embeddings OpenAI reais (`text-embedding-3-small`, 1536-d). Smoke `retrieval-smoke fausto "Bolsonaro"` retorna ordem semanticamente sã com legs vetorial + textual fundidas via RRF.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
@@ -64,6 +64,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 
 ### E2 — Núcleo RAG
 - [x] **E2.1** Busca híbrida (vetorial + tsvector + RRF) — `backend/src/rag/retrieval.ts::hybridSearch`
+- [x] **E2.2** Rerank top-50 → top-N + threshold + fallback `"no_context"` — `retrieveAndRerank` em `retrieval.ts`
 - [ ] E2.2 Rerank Cohere
 - [ ] E2.3 Persona Card (modelo + seed Fausto + endpoint)
 - [ ] E2.4 Prompt + caching

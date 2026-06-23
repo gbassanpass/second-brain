@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { EMBEDDING_DIMENSIONS } from '../db/types.js';
+import type { Reranker } from '../rerank/base.js';
 
 export interface HybridSearchOptions {
   creatorId: string;
@@ -114,4 +115,93 @@ export async function hybridSearch(
     textRank: r.text_rank === null ? null : Number(r.text_rank),
     rrfScore: Number(r.rrf_score),
   }));
+}
+
+export interface RetrieveAndRerankOptions {
+  creatorId: string;
+  query: string;
+  queryEmbedding: number[];
+  /** Final result size after rerank + threshold. Default 5. */
+  topK?: number;
+  /** Pool size sent to the reranker (= hybridSearch topK). Default 50. */
+  candidatePoolSize?: number;
+  /**
+   * Minimum rerank score to keep a hit. Below it → caller must emit
+   * "não tenho isso registrado" (docs/05 §Guardrails). Default 0.2.
+   */
+  rerankScoreThreshold?: number;
+}
+
+export interface RerankedHit {
+  chunkId: string;
+  documentId: string;
+  ordinal: number;
+  text: string;
+  rrfScore: number;
+  rerankScore: number;
+}
+
+export interface RetrieveAndRerankResult {
+  hits: RerankedHit[];
+  /**
+   * `no_context` when the retrieval pipeline produced nothing usable —
+   * orchestrator must answer "não tenho isso registrado".
+   */
+  fallback: 'no_context' | null;
+}
+
+/**
+ * End-to-end retrieval per `docs/05`: hybrid (vetor+tsv+RRF) →
+ * reranker → threshold cut. If no candidate clears the threshold (or
+ * hybrid itself returns empty), surface `fallback: 'no_context'` so the
+ * orchestrator can route to the anti-hallucination response without
+ * touching the LLM.
+ */
+export async function retrieveAndRerank(
+  db: Database,
+  reranker: Reranker,
+  opts: RetrieveAndRerankOptions,
+): Promise<RetrieveAndRerankResult> {
+  const poolSize = opts.candidatePoolSize ?? 50;
+  const topK = opts.topK ?? 5;
+  const threshold = opts.rerankScoreThreshold ?? 0.2;
+
+  const candidates = await hybridSearch(db, {
+    creatorId: opts.creatorId,
+    query: opts.query,
+    queryEmbedding: opts.queryEmbedding,
+    candidatePoolSize: poolSize,
+    topK: poolSize,
+  });
+
+  if (candidates.length === 0) {
+    return { hits: [], fallback: 'no_context' };
+  }
+
+  const byId = new Map(candidates.map((h) => [h.chunkId, h]));
+  const reranked = await reranker.rerank(
+    opts.query,
+    candidates.map((h) => ({ id: h.chunkId, text: h.text })),
+    topK,
+  );
+
+  const hits: RerankedHit[] = [];
+  for (const r of reranked) {
+    if (r.score < threshold) continue;
+    const base = byId.get(r.id);
+    if (!base) continue;
+    hits.push({
+      chunkId: base.chunkId,
+      documentId: base.documentId,
+      ordinal: base.ordinal,
+      text: base.text,
+      rrfScore: base.rrfScore,
+      rerankScore: r.score,
+    });
+  }
+
+  return {
+    hits,
+    fallback: hits.length === 0 ? 'no_context' : null,
+  };
 }
