@@ -89,6 +89,10 @@ function buildSchema(isTest: boolean) {
     BILLING_PROVIDER: z.enum(['stripe', 'fake']).default(isTest ? 'fake' : 'stripe'),
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
+    /** Recurring price the checkout subscribes to (Stripe `price_...`). */
+    STRIPE_PRICE_ID: optionalString,
+    /** Public base URL of the frontend — used to build checkout return URLs. */
+    PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
 
     MAX_TOKENS_PER_REPLY: z.coerce.number().int().positive().default(800),
     RETRIEVAL_TOP_K: z.coerce.number().int().positive().default(5),

@@ -51,6 +51,37 @@ export class BillingPayloadError extends Error {
   }
 }
 
+/** Everything the provider needs to open a hosted checkout for a subscription. */
+export interface CheckoutInput {
+  /** `public.users.id` — flows into the subscription metadata. */
+  userId: string;
+  /** `creators.id` — flows into the subscription metadata. */
+  creatorId: string;
+  creatorSlug: string;
+  /** Plan identifier persisted on activation (E5.3 webhook reads it back). */
+  plan: string;
+  /** Provider price id (Stripe `price_...`). Required by the real adapter. */
+  priceId?: string;
+  successUrl: string;
+  cancelUrl: string;
+  customerEmail?: string;
+}
+
+export interface CheckoutSession {
+  /** Hosted checkout URL the browser should be sent to. */
+  url: string;
+  /** Provider session id (Stripe `cs_...`) — for reference/logging. */
+  externalId: string | null;
+}
+
+/** Raised when a checkout session can't be created (e.g. missing price). → HTTP 500/400. */
+export class BillingConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BillingConfigError';
+  }
+}
+
 export interface BillingProvider {
   /** Persisted to `subscriptions.provider`. */
   readonly name: string;
@@ -62,4 +93,10 @@ export interface BillingProvider {
    * malformed/unsupported payload.
    */
   parseEvent(rawBody: string, signature: string | undefined): BillingEvent | null;
+  /**
+   * Open a hosted checkout for a recurring subscription. Metadata
+   * (`user_id`/`creator_id`/`plan`) is attached to the resulting subscription
+   * so the webhook can tie the activation back to our user/creator.
+   */
+  createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession>;
 }

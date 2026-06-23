@@ -76,13 +76,17 @@ export function createApp(deps: AppDeps = {}) {
     '/api/billing',
     createBillingRouter({
       getDb,
+      jwtSecret,
       getProvider: deps.getBillingProvider ?? defaultGetBillingProvider,
+      priceId: getConfig().STRIPE_PRICE_ID,
+      publicAppUrl: getConfig().PUBLIC_APP_URL,
     }),
   );
   app.route(
     '/api/chat',
     createChatRouter({
       getDb,
+      jwtSecret,
       getServices: deps.getChatServices ?? defaultGetChatServices,
       getConfig: deps.getChatConfig ?? defaultGetChatConfig,
     }),

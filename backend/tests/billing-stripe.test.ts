@@ -1,5 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import { BillingPayloadError, BillingSignatureError } from '../src/billing/base.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  BillingConfigError,
+  BillingPayloadError,
+  BillingSignatureError,
+} from '../src/billing/base.js';
 import {
   StripeBilling,
   parseStripeEventPayload,
@@ -155,5 +159,67 @@ describe('StripeBilling signature verification', () => {
     expect(() => billing.parseEvent(subscriptionEvent(), 'whatever')).toThrow(
       BillingSignatureError,
     );
+  });
+});
+
+describe('StripeBilling.createCheckoutSession', () => {
+  const checkoutInput = {
+    userId: 'user-uuid-1234',
+    creatorId: 'creator-uuid',
+    creatorSlug: 'fausto',
+    plan: 'mvp-monthly',
+    priceId: 'price_123',
+    successUrl: 'https://app/ok',
+    cancelUrl: 'https://app/no',
+    customerEmail: 'a@b.com',
+  };
+
+  it('POSTs a form-encoded subscription session and returns the url', async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: 'cs_test_1', url: 'https://checkout.stripe/x' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+    const billing = new StripeBilling({
+      webhookSecret: 'whsec',
+      secretKey: 'sk_test',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+
+    const session = await billing.createCheckoutSession(checkoutInput);
+    expect(session).toEqual({ url: 'https://checkout.stripe/x', externalId: 'cs_test_1' });
+
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain('/v1/checkout/sessions');
+    const body = String(init.body);
+    expect(body).toContain('mode=subscription');
+    expect(body).toContain('line_items%5B0%5D%5Bprice%5D=price_123');
+    // Metadata must ride on the subscription so the webhook can wire it back.
+    expect(body).toContain('subscription_data%5Bmetadata%5D%5Buser_id%5D=user-uuid-1234');
+    expect(body).toContain('subscription_data%5Bmetadata%5D%5Bcreator_id%5D=creator-uuid');
+  });
+
+  it('throws BillingConfigError without a secret key', async () => {
+    const billing = new StripeBilling({ webhookSecret: 'whsec' });
+    await expect(billing.createCheckoutSession(checkoutInput)).rejects.toThrow(BillingConfigError);
+  });
+
+  it('throws BillingConfigError without a price id', async () => {
+    const billing = new StripeBilling({ webhookSecret: 'whsec', secretKey: 'sk_test' });
+    await expect(
+      billing.createCheckoutSession({ ...checkoutInput, priceId: undefined }),
+    ).rejects.toThrow(BillingConfigError);
+  });
+
+  it('surfaces a Stripe API error as BillingConfigError', async () => {
+    const fetchImpl = vi.fn(async () => new Response('bad', { status: 400 }));
+    const billing = new StripeBilling({
+      webhookSecret: 'whsec',
+      secretKey: 'sk_test',
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+    });
+    await expect(billing.createCheckoutSession(checkoutInput)).rejects.toThrow(BillingConfigError);
   });
 });

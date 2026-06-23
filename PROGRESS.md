@@ -7,13 +7,14 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E6 — Frontend MVP** (2/5 tarefas).
-- **Próxima tarefa:** **E6.3** — Paywall/checkout: tela de oferta no lugar do composer quando sem assinatura + retorno validando assinatura (usa o 402 do `requireAccess` + o webhook do E5.3). Provavelmente junto com a **tela de login** (Supabase Auth) — que destrava o follow-up de auth do chat.
+- **Épico atual:** **E6 — Frontend MVP** (3/5 tarefas).
+- **Próxima tarefa:** **E6.4** — Studio do criador (`/studio`): conectar fontes, status de indexação, editor da Persona Card, "testar o clone". (E6.5 = analytics cards depois.)
 - **Último commit:** `e41e7a2 E6.2: chat /c/[slug]/chat estilo ChatGPT (UI)`.
-- **Testes:** 305 verdes em 35 arquivos. Lint + typecheck verdes.
+- **Testes:** 316 verdes em 36 arquivos. Lint + typecheck verdes.
 
-> ⚠️ **Decisão de escopo E6.2 (auth adiada)**: o chat consome `POST /api/chat` **sem enforcement** porque ainda não há tela de login (E5.1 só fez o backend de JWT). O follow-up "wirear `requireAuth + requireAccess` no `POST /api/chat`" segue **aberto** — fazer junto com a tela de login (E6.3). Assim os 13 testes de chat continuam verdes e o chat funciona end-to-end já.
-> 🟡 **Follow-ups visuais E6.2**: (1) **markdown** — respostas vêm em markdown (headers/bold/listas) mas a UI renderiza texto puro (`whitespace-pre-wrap`); (2) **streaming** — backend `/api/chat` é não-streaming, UI mostra "pensando" (3 pontinhos) e troca pela resposta completa. Ambos são polimento, não bloqueiam a aceitação (fontes/guardrail/disclaimer estão prontos).
+> ✅ **Follow-up E5.2 fechado no E6.3**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` (slug resolvido do body via `resolveSlug` async; userId vem do JWT, creatorId do `access`). Os 13 testes de chat foram atualizados p/ provisionar subscriber+assinatura ativa e mandar JWT (+2 testes novos: 401 sem JWT, 402 sem assinatura).
+> 🟡 **Follow-ups visuais E6.2**: (1) **markdown** — respostas vêm em markdown mas a UI renderiza texto puro (`whitespace-pre-wrap`); (2) **streaming** — backend `/api/chat` é não-streaming, UI usa "pensando". Polimento, não bloqueiam aceite.
+> 🟡 **Stripe real (E6.3)**: o adapter Stripe de checkout está wireado (REST form-encoded via `node:fetch`) mas só foi smoke-testado com fetch mockado — o caminho **Fake** foi verificado end-to-end local. Pra produção: setar `STRIPE_SECRET_KEY` + `STRIPE_PRICE_ID` + `BILLING_PROVIDER=stripe` e validar com chaves de teste reais.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -55,7 +56,7 @@ Auth (Supabase) + paywall prontos:
 - **Subscription "ativa"**: `status ∈ {active, trialing}` AND (`current_period_end IS NULL` OR > now).
 - **Testes**: 261 no total (29 arquivos). E5 contribui 29 (jwt unit 7, me-api integração 6, checkAccess unit 8, access-api integração 7, ajustes config 1).
 
-> 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `/api/c/:slug/access`. Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
+> ✅ **Follow-up E5.2 (RESOLVIDO no E6.3)**: `requireAuth + requireAccess` agora protegem o `POST /api/chat` também.
 
 ## Marco do E5.3 (referência rápida)
 
@@ -86,6 +87,16 @@ Chat `/c/[slug]/chat` estilo ChatGPT pronto, verificado end-to-end (page 200; PO
 - **Disclaimer** sempre visível no rodapé do composer (regra anti-engano §6 + CVM).
 - **Adiado (follow-up, não bloqueia aceite)**: enforcement de auth no `/api/chat` (espera login); render de **markdown** (hoje texto puro); **streaming** (backend não-streaming, UI usa "pensando").
 - **Testes**: 10 novos unit no `lib/chat` (sourceLabel 2, dedupeSources 1, assistantMessageFromResponse 3, shouldSubmitOnKey 4). Total 305 verdes em 35 arquivos. (Os 13 testes de integração do chat seguem intactos — sem auth.)
+
+## Marco do E6.3 (referência rápida)
+
+Login + auth no chat + paywall + checkout prontos. **Verificado end-to-end local** (Fake billing): anon→gate login; authed-sem-assinatura→paywall (402); checkout→URL fake; webhook→ativa assinatura; access→liberado; chat authed→200.
+- **Checkout backend**: `BillingProvider.createCheckoutSession` (Stripe via REST form-encoded com `node:fetch` + Fake que devolve a successUrl) + `POST /api/billing/checkout` (requireAuth; resolve creator; metadata `user_id/creator_id/plan` na subscription pro webhook do E5.3 reler; 503 `billing_not_configured` se faltar key/price). Config: `STRIPE_PRICE_ID`, `PUBLIC_APP_URL`.
+- **Auth no chat** (fecha follow-up E5.2): `POST /api/chat` agora monta `requireAuth + requireAccess`. `requireAccess.resolveSlug` virou async (lê `creatorSlug` do body JSON; Hono cacheia o body, handler relê). `userId` vem do JWT, `creatorId` do `access`. Removido `userId` do body. 13 testes de chat atualizados (provisionam subscriber+assinatura ativa + JWT) +2 novos (401 sem JWT, 402 sem assinatura).
+- **Login frontend**: `@supabase/supabase-js` (browser client singleton, `detectSessionInUrl`), `lib/useSession` (hook: status/accessToken/email/signOut), página `/login` (magic link via `signInWithOtp`, redirect p/ `/c/fausto/chat`). Capturável via Mailpit local (`:54324`).
+- **Paywall + proxies**: `ChatRoom` usa `useSession`, pré-checa `GET /api/c/:slug/access` e renderiza gate: `loading`→"Verificando acesso", `anon`→"Entrar" (link /login), `blocked`→"Assinar" (→ checkout → redirect), `allowed`→Composer. Proxies BFF same-origin (`forwardToBackend` repassa `Authorization`): `app/api/chat`, `app/api/c/[slug]/access`, `app/api/billing/checkout`. TopBar mostra e-mail + "Sair".
+- **Env**: `.env.example` ganhou `NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `STRIPE_PRICE_ID`, `PUBLIC_APP_URL`. Para dev usar o checkout Fake: `BILLING_PROVIDER=fake`.
+- **Testes**: 11 novos backend (5 checkout-api + 4 Stripe createCheckoutSession + 2 chat auth) = 296 backend. Frontend segue 20 (lib puro). **Total 316 verdes em 36 arquivos.** `next build` limpo (7 rotas, 3 proxies).
 
 ## ▶️ Roteiro de retomada padrão
 
@@ -136,9 +147,8 @@ Chat `/c/[slug]/chat` estilo ChatGPT pronto, verificado end-to-end (page 200; PO
 
 ### E6 — Frontend MVP
 - [x] **E6.1** Landing `/c/[slug]` — ver marco abaixo.
-- [x] **E6.2** Chat `/c/[slug]/chat` (estilo ChatGPT) — ver marco abaixo. Auth adiada p/ tela de login (E6.3).
-- [ ] E6.2 Chat `/c/[slug]/chat` (estilo ChatGPT — doc 11)
-- [ ] E6.3 Paywall/checkout
+- [x] **E6.2** Chat `/c/[slug]/chat` (estilo ChatGPT) — ver marco abaixo.
+- [x] **E6.3** Login (Supabase) + auth no `/api/chat` + paywall + checkout — ver marco abaixo.
 - [ ] E6.4 Studio `/studio`
 - [ ] E6.5 Analytics cards
 

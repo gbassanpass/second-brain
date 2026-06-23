@@ -27,9 +27,10 @@ export interface RequireAccessDeps {
    * Resolves the creator slug for the current request. Defaults to
    * `c.req.param('slug')` so it works out-of-the-box on routes mounted under
    * `/api/c/:slug/...`. Override for routes that carry the slug elsewhere
-   * (request body, header, etc.).
+   * (request body, header, etc.). May be async — e.g. reading `c.req.json()`
+   * (Hono caches the parsed body, so the handler can read it again).
    */
-  resolveSlug?: (c: Context) => string | undefined;
+  resolveSlug?: (c: Context) => string | undefined | Promise<string | undefined>;
   /** Clock override for tests — forwarded to `checkAccess`. */
   now?: () => number;
 }
@@ -50,7 +51,7 @@ export function requireAccess(deps: RequireAccessDeps): MiddlewareHandler {
     if (!user) {
       return c.json({ error: 'unauthorized', reason: 'requireAuth_not_run' }, 401);
     }
-    const slug = resolveSlug(c);
+    const slug = await resolveSlug(c);
     if (!slug) {
       return c.json({ error: 'bad_request', reason: 'creator_slug_missing' }, 400);
     }

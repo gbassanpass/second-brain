@@ -1,10 +1,13 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import {
+  BillingConfigError,
   type BillingEvent,
   BillingPayloadError,
   type BillingProvider,
   BillingSignatureError,
+  type CheckoutInput,
+  type CheckoutSession,
 } from './base.js';
 
 /**
@@ -112,8 +115,18 @@ export function parseStripeEventPayload(rawBody: string): BillingEvent | null {
   };
 }
 
+const StripeCheckoutSessionResponse = z
+  .object({ id: z.string().min(1), url: z.string().url() })
+  .passthrough();
+
 export interface StripeBillingOptions {
   webhookSecret: string;
+  /** Secret API key (`sk_...`) — needed only for `createCheckoutSession`. */
+  secretKey?: string;
+  /** Base URL of the Stripe API. Overridable in tests. */
+  apiBaseUrl?: string;
+  /** Injectable fetch for tests. Defaults to global `fetch`. */
+  fetchImpl?: typeof fetch;
   /** Clock for the replay-tolerance check. Defaults to `Date.now`. */
   now?: () => number;
   /** Max age of the signed timestamp, in seconds. 0 disables the check. */
@@ -123,11 +136,17 @@ export interface StripeBillingOptions {
 export class StripeBilling implements BillingProvider {
   readonly name = PROVIDER;
   private readonly secret: string;
+  private readonly secretKey: string;
+  private readonly apiBaseUrl: string;
+  private readonly fetchImpl: typeof fetch;
   private readonly now: () => number;
   private readonly tolerance: number;
 
   constructor(opts: StripeBillingOptions) {
     this.secret = opts.webhookSecret;
+    this.secretKey = opts.secretKey ?? '';
+    this.apiBaseUrl = opts.apiBaseUrl ?? 'https://api.stripe.com';
+    this.fetchImpl = opts.fetchImpl ?? fetch;
     this.now = opts.now ?? Date.now;
     this.tolerance = opts.toleranceSeconds ?? 300;
   }
@@ -135,6 +154,51 @@ export class StripeBilling implements BillingProvider {
   parseEvent(rawBody: string, signature: string | undefined): BillingEvent | null {
     this.verifySignature(rawBody, signature);
     return parseStripeEventPayload(rawBody);
+  }
+
+  async createCheckoutSession(input: CheckoutInput): Promise<CheckoutSession> {
+    if (!this.secretKey) {
+      throw new BillingConfigError('STRIPE_SECRET_KEY is not configured');
+    }
+    if (!input.priceId) {
+      throw new BillingConfigError('STRIPE_PRICE_ID is not configured');
+    }
+
+    // Stripe's API is form-encoded. `subscription_data[metadata][...]` lands on
+    // the subscription object the webhook later receives (E5.3).
+    const form = new URLSearchParams({
+      mode: 'subscription',
+      'line_items[0][price]': input.priceId,
+      'line_items[0][quantity]': '1',
+      success_url: input.successUrl,
+      cancel_url: input.cancelUrl,
+      'subscription_data[metadata][user_id]': input.userId,
+      'subscription_data[metadata][creator_id]': input.creatorId,
+      'subscription_data[metadata][plan]': input.plan,
+      'metadata[user_id]': input.userId,
+      'metadata[creator_id]': input.creatorId,
+    });
+    if (input.customerEmail) {
+      form.set('customer_email', input.customerEmail);
+    }
+
+    const res = await this.fetchImpl(`${this.apiBaseUrl}/v1/checkout/sessions`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${this.secretKey}`,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new BillingConfigError(`Stripe checkout failed: ${res.status} ${detail}`.trim());
+    }
+    const parsed = StripeCheckoutSessionResponse.safeParse(await res.json());
+    if (!parsed.success) {
+      throw new BillingConfigError(`unexpected Stripe checkout response: ${parsed.error.message}`);
+    }
+    return { url: parsed.data.url, externalId: parsed.data.id };
   }
 
   private verifySignature(rawBody: string, header: string | undefined): void {

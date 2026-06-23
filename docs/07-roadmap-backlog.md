@@ -64,8 +64,8 @@
 
 ### Épico E6 — Frontend MVP
 - [x] **E6.1** Landing do clone (`/c/[slug]`) com exemplos e CTA + disclaimer.
-- [x] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming. *(streaming e markdown ficaram como follow-up — backend `/api/chat` é não-streaming; auth no chat segue adiada até a tela de login.)*
-- [ ] **E6.3** Paywall/checkout e retorno validando assinatura.
+- [x] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming. *(streaming e markdown ficaram como follow-up — backend `/api/chat` é não-streaming. Auth no chat foi wireada no E6.3.)*
+- [x] **E6.3** Paywall/checkout e retorno validando assinatura. *(Login Supabase magic link + auth wireada no `/api/chat` (fechou follow-up E5.2) + gating de paywall + checkout via adapter. Stripe real só fumaça — caminho Fake verificado end-to-end local.)*
 - [ ] **E6.4** Studio do criador (`/studio`): fontes, status, editor de Persona, analytics, "testar clone".
 - [ ] **E6.5** Analytics cards (conversas, custo, perguntas top, taxa de guardrail).
 

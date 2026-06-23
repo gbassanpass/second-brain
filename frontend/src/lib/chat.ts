@@ -88,19 +88,53 @@ export function shouldSubmitOnKey(key: string, shiftKey: boolean, isComposing: b
   return key === 'Enter' && !shiftKey && !isComposing;
 }
 
+function authHeaders(accessToken: string | null): Record<string, string> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (accessToken) headers.authorization = `Bearer ${accessToken}`;
+  return headers;
+}
+
 /** POST a turn to the same-origin Next.js proxy (which forwards to the backend). */
-export async function postChat(body: {
-  creatorSlug: string;
-  query: string;
-  conversationId?: string;
-}): Promise<ChatApiResponse> {
+export async function postChat(
+  body: { creatorSlug: string; query: string; conversationId?: string },
+  accessToken: string | null,
+): Promise<ChatApiResponse> {
   const res = await fetch('/api/chat', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: authHeaders(accessToken),
     body: JSON.stringify(body),
   });
   if (!res.ok) {
     throw new Error(`chat request failed: ${res.status}`);
   }
   return (await res.json()) as ChatApiResponse;
+}
+
+export type AccessVerdict = 'allowed' | 'payment_required' | 'unauthorized' | 'unknown';
+
+/** Pre-flight the paywall via `GET /api/c/:slug/access`. */
+export async function fetchAccess(
+  slug: string,
+  accessToken: string | null,
+): Promise<AccessVerdict> {
+  const res = await fetch(`/api/c/${encodeURIComponent(slug)}/access`, {
+    headers: authHeaders(accessToken),
+  });
+  if (res.status === 200) return 'allowed';
+  if (res.status === 402) return 'payment_required';
+  if (res.status === 401) return 'unauthorized';
+  return 'unknown';
+}
+
+/** Open a checkout session and return the hosted URL to redirect to. */
+export async function startCheckout(slug: string, accessToken: string | null): Promise<string> {
+  const res = await fetch('/api/billing/checkout', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ creatorSlug: slug }),
+  });
+  if (!res.ok) {
+    throw new Error(`checkout failed: ${res.status}`);
+  }
+  return ((await res.json()) as { url: string }).url;
 }

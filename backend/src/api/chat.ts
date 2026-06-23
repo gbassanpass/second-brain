@@ -1,23 +1,17 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import type { Config } from '../config.js';
-import type { Database } from '../db/client.js';
-import {
-  type ChatLimits,
-  type ChatServices,
-  processChat,
-  resolveCreatorBySlug,
-} from '../services/chat.js';
+import { type ChatLimits, type ChatServices, processChat } from '../services/chat.js';
+import { type AccessVariables, requireAccess } from './middleware/require-access.js';
+import { type RequireAuthDeps, requireAuth } from './middleware/require-auth.js';
 
 const chatBody = z.object({
   creatorSlug: z.string().min(1),
   query: z.string().min(1).max(2000),
   conversationId: z.string().uuid().optional(),
-  userId: z.string().uuid().optional(),
 });
 
-export interface ChatRouterDeps {
-  getDb: () => Database;
+export interface ChatRouterDeps extends RequireAuthDeps {
   getServices: () => ChatServices;
   getConfig: () => Pick<
     Config,
@@ -30,10 +24,28 @@ export interface ChatRouterDeps {
     | 'LLM_ROUTING_LONG_QUERY_CHARS'
     | 'LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD'
   >;
+  /** Clock override forwarded to `requireAccess` — used by tests. */
+  now?: () => number;
 }
 
-export function createChatRouter(deps: ChatRouterDeps): Hono {
-  const router = new Hono();
+export function createChatRouter(deps: ChatRouterDeps): Hono<{ Variables: AccessVariables }> {
+  const router = new Hono<{ Variables: AccessVariables }>();
+
+  // Chat requires a logged-in user with access (active subscription, or
+  // creator/operator). The slug lives in the JSON body; Hono caches the parsed
+  // body so the handler below can read it again.
+  router.use('/', requireAuth(deps));
+  router.use(
+    '/',
+    requireAccess({
+      getDb: deps.getDb,
+      now: deps.now,
+      resolveSlug: async (c) => {
+        const json = (await c.req.json().catch(() => null)) as { creatorSlug?: unknown } | null;
+        return typeof json?.creatorSlug === 'string' ? json.creatorSlug : undefined;
+      },
+    }),
+  );
 
   router.post('/', async (c) => {
     const json = await c.req.json().catch(() => null);
@@ -43,10 +55,8 @@ export function createChatRouter(deps: ChatRouterDeps): Hono {
     }
 
     const db = deps.getDb();
-    const creator = await resolveCreatorBySlug(db, parsed.data.creatorSlug);
-    if (!creator) {
-      return c.json({ error: 'creator_not_found', slug: parsed.data.creatorSlug }, 404);
-    }
+    const user = c.get('user');
+    const access = c.get('access');
 
     const config = deps.getConfig();
     const limits: Partial<ChatLimits> = {
@@ -62,11 +72,11 @@ export function createChatRouter(deps: ChatRouterDeps): Hono {
 
     try {
       const result = await processChat(db, deps.getServices(), limits, {
-        creatorId: creator.id,
+        creatorId: access.creatorId,
         creatorSlug: parsed.data.creatorSlug,
         query: parsed.data.query,
         conversationId: parsed.data.conversationId,
-        userId: parsed.data.userId,
+        userId: user.id,
       });
       return c.json({
         conversationId: result.conversationId,

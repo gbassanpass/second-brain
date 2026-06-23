@@ -1,10 +1,19 @@
 import { randomUUID } from 'node:crypto';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import postgres from 'postgres';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app.js';
+import { signJwtForTesting } from '../src/auth/jwt.js';
 import { closeDb, getDb } from '../src/db/client.js';
-import { chunks, conversations, creators, documents, messages } from '../src/db/schema.js';
+import {
+  chunks,
+  conversations,
+  creators,
+  documents,
+  messages,
+  subscriptions,
+  users,
+} from '../src/db/schema.js';
 import { FakeEmbedder } from '../src/embeddings/fake.js';
 import { FakeLLM } from '../src/llm/fake.js';
 import { estimateCostUsd } from '../src/rag/cost.js';
@@ -12,6 +21,8 @@ import { type PersonaCard, personaCardSchema } from '../src/rag/persona.js';
 import { FakeReranker } from '../src/rerank/fake.js';
 import { ensureCreatorBySlug } from '../src/services/documents.js';
 import { setPersonaCard } from '../src/services/persona.js';
+
+const JWT_SECRET = 'super-secret-jwt-token-with-at-least-32-characters-long';
 
 const DB_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54322/postgres';
@@ -55,10 +66,15 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
   let llm: FakeLLM;
   let creatorId = '';
   let chunkIds: string[] = [];
+  // Auth (E6.3): chat now requires a logged-in subscriber with active access.
+  let authId = '';
+  let userId = '';
+  let token = '';
 
   const buildApp = (overrides: Partial<ReturnType<typeof baseConfig>> = {}) =>
     createApp({
       getDb: () => getDb(DB_URL),
+      jwtSecret: JWT_SECRET,
       getChatServices: () => ({ embedder, reranker, llm }),
       getChatConfig: () => ({ ...baseConfig(), ...overrides }),
       enqueueSync: async () => ({ jobId: 'noop' }),
@@ -92,6 +108,29 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     creatorId = creator.id;
     await setPersonaCard(db, slug, PERSONA);
 
+    // Provision a subscriber (auth.users trigger → public.users) + an active
+    // subscription so the paywall lets every chat turn through.
+    authId = randomUUID();
+    await db.execute(
+      sql`INSERT INTO auth.users (id, email) VALUES (${authId}::uuid, ${`chat-${authId.slice(0, 8)}@example.com`})`,
+    );
+    const [u] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.externalId, authId))
+      .limit(1);
+    if (!u) throw new Error('auth trigger did not provision user');
+    userId = u.id;
+    await db.insert(subscriptions).values({
+      creatorId,
+      userId,
+      plan: 'mvp-monthly',
+      status: 'active',
+      provider: 'stripe',
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    });
+    token = signJwtForTesting({ sub: authId }, JWT_SECRET);
+
     // Seed 1 document + 3 chunks with FakeEmbedder vectors (so vector search
     // returns something deterministic).
     const [doc] = await db
@@ -124,12 +163,17 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
   }, 30000);
 
   afterAll(async () => {
+    const db = getDb(DB_URL);
+    if (userId) await db.delete(subscriptions).where(eq(subscriptions.userId, userId));
     if (creatorId) {
-      const db = getDb(DB_URL);
       await db.delete(messages).where(eq(messages.creatorId, creatorId));
       await db.delete(conversations).where(eq(conversations.creatorId, creatorId));
       await db.delete(documents).where(eq(documents.creatorId, creatorId));
       await db.delete(creators).where(eq(creators.id, creatorId));
+    }
+    if (authId) {
+      await db.delete(users).where(eq(users.externalId, authId));
+      await db.execute(sql`DELETE FROM auth.users WHERE id = ${authId}::uuid`);
     }
     await closeDb();
   }, 15000);
@@ -140,7 +184,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     expect(res.status).toBe(200);
@@ -190,14 +234,14 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const first = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     const firstBody = (await first.json()) as { conversationId: string };
 
     const second = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({
         creatorSlug: slug,
         query: 'e o petróleo?',
@@ -220,7 +264,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({
         creatorSlug: slug,
         query: 'Que cripto eu devo comprar agora?',
@@ -254,7 +298,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'O que ele pensa sobre eleições?' }),
     });
     const body = (await res.json()) as { guardrailFlag: string | null };
@@ -268,7 +312,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     const body = (await res.json()) as {
@@ -292,7 +336,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     expect(res.status).toBe(200);
@@ -336,7 +380,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     expect(res.status).toBe(200);
@@ -369,7 +413,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     expect(res.status).toBe(200);
@@ -398,7 +442,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'eleições brasileiras' }),
     });
     expect(res.status).toBe(200);
@@ -422,7 +466,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp();
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({
         creatorSlug: slug,
         query: 'O que ele pensa sobre eleições? E sobre o petróleo?',
@@ -444,7 +488,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const long = `${'eleições brasileiras com muito contexto e nuance '.repeat(20)}.`;
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: long }),
     });
     const body = (await res.json()) as { routingReason: string };
@@ -456,7 +500,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp({ RERANK_SCORE_THRESHOLD: 1.01 });
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({ creatorSlug: slug, query: 'qualquer coisa' }),
     });
     expect(res.status).toBe(200);
@@ -492,7 +536,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
       (
         await app.request('/api/chat', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
           body: JSON.stringify({ creatorSlug: slug, query: '' }),
         })
       ).status,
@@ -501,7 +545,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
       (
         await app.request('/api/chat', {
           method: 'POST',
-          headers: { 'content-type': 'application/json' },
+          headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
           body: JSON.stringify({ creatorSlug: '__unknown__', query: 'oi' }),
         })
       ).status,
@@ -526,7 +570,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const app = buildApp();
     const res = await app.request('/api/chat', {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
       body: JSON.stringify({
         creatorSlug: slug,
         query: 'oi',
@@ -537,6 +581,39 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
 
     await db.delete(conversations).where(eq(conversations.id, otherConv.id));
     await db.delete(creators).where(eq(creators.id, other.id));
+  });
+
+  it('returns 401 without a JWT (auth required — E6.3)', async () => {
+    llm = new FakeLLM();
+    const res = await buildApp().request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: 'oi' }),
+    });
+    expect(res.status).toBe(401);
+    expect(llm.calls).toHaveLength(0);
+  });
+
+  it('returns 402 for an authenticated user without an active subscription', async () => {
+    llm = new FakeLLM();
+    const db = getDb(DB_URL);
+    const otherAuthId = randomUUID();
+    await db.execute(
+      sql`INSERT INTO auth.users (id, email) VALUES (${otherAuthId}::uuid, ${`nosub-${otherAuthId.slice(0, 8)}@example.com`})`,
+    );
+    const otherToken = signJwtForTesting({ sub: otherAuthId }, JWT_SECRET);
+
+    const res = await buildApp().request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${otherToken}` },
+      body: JSON.stringify({ creatorSlug: slug, query: 'oi' }),
+    });
+    expect(res.status).toBe(402);
+    expect(((await res.json()) as { reason: string }).reason).toBe('no_subscription');
+    expect(llm.calls).toHaveLength(0);
+
+    await db.delete(users).where(eq(users.externalId, otherAuthId));
+    await db.execute(sql`DELETE FROM auth.users WHERE id = ${otherAuthId}::uuid`);
   });
 });
 
