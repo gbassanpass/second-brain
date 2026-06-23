@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E5 — Auth, paywall e billing** (1/3 tarefas).
 - **Próxima tarefa:** **E5.2** — Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
-- **Último commit:** `831ed28 docs(progress): record E4.2 commit hash`.
+- **Último commit:** `323e7e6 E5.1: Supabase Auth — trigger on_auth_user_created + middleware requireAuth + GET /api/me`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
