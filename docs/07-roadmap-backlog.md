@@ -63,7 +63,7 @@
   - *Aceite:* assinatura de teste libera acesso; cancelamento bloqueia; reprocessar o mesmo evento (mesmo `external_id`) não duplica.
 
 ### Épico E6 — Frontend MVP
-- [ ] **E6.1** Landing do clone (`/c/[slug]`) com exemplos e CTA + disclaimer.
+- [x] **E6.1** Landing do clone (`/c/[slug]`) com exemplos e CTA + disclaimer.
 - [ ] **E6.2** Chat (`/c/[slug]/chat`) com fontes, badge de guardrail, disclaimer, streaming.
 - [ ] **E6.3** Paywall/checkout e retorno validando assinatura.
 - [ ] **E6.4** Studio do criador (`/studio`): fontes, status, editor de Persona, analytics, "testar clone".

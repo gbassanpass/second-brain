@@ -7,10 +7,10 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E5 — Auth, paywall e billing** ✅ **CONCLUÍDO (3/3 tarefas)**.
-- **Próxima tarefa:** **E6.1** — Landing `/c/[slug]` (início do épico E6, frontend MVP). ⚠️ Fim de épico E5 → parar para revisão humana.
+- **Épico atual:** **E6 — Frontend MVP** (1/5 tarefas).
+- **Próxima tarefa:** **E6.2** — Chat `/c/[slug]/chat` (estilo ChatGPT — doc 11): MessageList, Composer, fontes, badge de guardrail, disclaimer. Wirear `requireAuth + requireAccess` no `POST /api/chat` (follow-up do E5.2).
 - **Último commit:** `d6aae72 E5.3: webhook idempotente de billing (Stripe MVP)`.
-- **Testes:** 283 verdes em 32 arquivos. Lint + typecheck verdes.
+- **Testes:** 295 verdes em 34 arquivos. Lint + typecheck verdes.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -65,6 +65,15 @@ Webhook de billing idempotente pronto:
 - **Biome**: `backend/src/billing/**` já estava no allowlist de `noRestrictedImports` (SDK `stripe` liberado só ali) — mas a impl atual usa só `node:crypto`, sem SDK.
 - **Testes**: 22 novos — 16 unit no adapter Stripe (8 parse: normalize/plan-fallback/canceled/null-unrelated/missing-metadata/malformed-json/bad-shape + 8 assinatura: valid/tampered/wrong-secret/missing-header/malformed-header/replay-tolerance/tolerance-0/no-secret) + 5 integração na rota (ignored→200, payload inválido→400, cria sub+libera acesso, reprocessa idempotente sem duplicar, cancela→bloqueia acesso 402) + 1 ajuste.
 
+## Marco do E6.1 (referência rápida)
+
+Landing pública do clone pronta (`/c/[slug]`), verificada end-to-end (curl → 200 com nome + "mente digital" + one-liner + chips + CTA + disclaimer; slug inválido → 404):
+- **Endpoint público backend**: `GET /api/creators/:slug` (sem auth) → `services/creator.ts::getPublicCreator` retorna subconjunto curado `{slug, displayName, niche, oneLiner, disclaimer}`. `oneLiner`/`disclaimer` vêm do Persona Card (via `personaCardSchema.safeParse`); **não vaza** frameworks/do/dont/catchphrases (que alimentam o prompt). 404 se slug não existe.
+- **Frontend** (Next.js 14, Server Component): `lib/api.ts::fetchCreator` (fetch SSR com `revalidate:60`, base `NEXT_PUBLIC_API_URL` default `http://localhost:3001`, 404→null, outros erros→throw). `lib/creator.ts` puro: `buildLandingView` (tagline com fallback one-liner→niche→neutro; disclaimer default leva o aviso "mente digital" da regra anti-engano §6; `initialsFor` p/ avatar) + `EXAMPLE_QUESTIONS` (3 chips creator-agnostic — campo na Persona p/ exemplos por criador fica p/ task futura). Página `app/c/[slug]/page.tsx`: header (avatar iniciais + nome + tag "mente digital"), tagline, chips "Experimente perguntar", CTA "Conversar com {nome}" → `/c/[slug]/chat`, disclaimer no rodapé. `generateMetadata` + `notFound()` para slug inexistente.
+- **Import note**: frontend usa `moduleResolution: Bundler` → imports relativos **sem** extensão `.js` (webpack/Next não reescreve `.js`→`.ts`; só o backend NodeNext usa `.js`).
+- **Env**: `.env.example` ganhou `NEXT_PUBLIC_API_URL` e `BILLING_PROVIDER` (este faltava do E5.3).
+- **Testes**: 12 novos — 3 integração no endpoint (perfil curado, não-vazamento da persona, 404) + 9 unit no `lib/creator` (initialsFor 4 + buildLandingView 5). Total 295 verdes em 34 arquivos.
+
 ## ▶️ Roteiro de retomada padrão
 
 1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
@@ -112,8 +121,8 @@ Webhook de billing idempotente pronto:
 - [x] **E5.2** Middleware `requireAccess` — `services/access.ts::checkAccess` puro: operator/creator passam direto; subscriber precisa de `subscriptions` row com status `active`|`trialing` AND `current_period_end > now` (nulo conta como sem expiração). `api/middleware/require-access.ts::requireAccess` Hono middleware: lê `c.get('user')` (precisa do `requireAuth` antes), resolve slug → creator, chama checkAccess. 402 com `{error:'payment_required', reason, creatorId, creatorSlug, checkout:{url:null, message}}`. Rota demo `GET /api/c/:slug/access` (pré-flight pro frontend). 15 testes novos: 8 unit em checkAccess (operator, creator, active, trialing, no_sub, canceled, expired period, clock injection) + 7 integração na rota (401 sem JWT, 404 slug inválido, 402 no_sub, 402 expired, 200 active, 200 operator/creator bypass).
 - [x] **E5.3** Webhook idempotente de billing — `POST /api/billing/webhook` + adapter `BillingProvider` (Stripe HMAC + Fake) + upsert idempotente em `(provider, external_id)`. Ver marco acima.
 
-### E6 — Frontend MVP (pendente)
-- [ ] E6.1 Landing `/c/[slug]`
+### E6 — Frontend MVP
+- [x] **E6.1** Landing `/c/[slug]` — ver marco abaixo.
 - [ ] E6.2 Chat `/c/[slug]/chat` (estilo ChatGPT — doc 11)
 - [ ] E6.3 Paywall/checkout
 - [ ] E6.4 Studio `/studio`

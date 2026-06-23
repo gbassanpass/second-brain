@@ -5,6 +5,7 @@ import type { Database } from '../db/client.js';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
 import { personaCardSchema } from '../rag/persona.js';
+import { getPublicCreator } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 
@@ -19,6 +20,16 @@ const createDocumentBody = z.object({
 
 export function createCreatorsRouter(getDb: () => Database): Hono {
   const router = new Hono();
+
+  // Public landing data (E6.1) — anonymous, no auth. Curated subset only.
+  router.get('/:slug', async (c) => {
+    const slug = c.req.param('slug');
+    const creator = await getPublicCreator(getDb(), slug);
+    if (!creator) {
+      return c.json({ error: 'creator_not_found', slug }, 404);
+    }
+    return c.json(creator);
+  });
 
   router.post('/:slug/documents', async (c) => {
     const slug = c.req.param('slug');
