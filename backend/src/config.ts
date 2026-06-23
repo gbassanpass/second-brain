@@ -86,6 +86,7 @@ function buildSchema(isTest: boolean) {
 
     ELEVENLABS_API_KEY: optionalString,
 
+    BILLING_PROVIDER: z.enum(['stripe', 'fake']).default(isTest ? 'fake' : 'stripe'),
     STRIPE_SECRET_KEY: optionalString,
     STRIPE_WEBHOOK_SECRET: optionalString,
 

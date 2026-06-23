@@ -59,7 +59,7 @@
   - *Aceite:* signup pelo frontend cria linha em `public.users`; chamadas sem JWT recebem 401; JWT inválido recebe 401.
 - [x] **E5.2** Middleware `requireAccess(creatorSlug)` (paywall) conforme doc 06.
   - *Aceite:* assinante ativo passa; sem assinatura recebe 402 com payload de checkout; criador/operador sempre passa.
-- [ ] **E5.3** Webhook de billing idempotente (`POST /api/billing/webhook`) cria/atualiza `subscriptions` (Stripe no MVP; Hotmart/Kiwify por trás da mesma interface).
+- [x] **E5.3** Webhook de billing idempotente (`POST /api/billing/webhook`) cria/atualiza `subscriptions` (Stripe no MVP; Hotmart/Kiwify por trás da mesma interface).
   - *Aceite:* assinatura de teste libera acesso; cancelamento bloqueia; reprocessar o mesmo evento (mesmo `external_id`) não duplica.
 
 ### Épico E6 — Frontend MVP

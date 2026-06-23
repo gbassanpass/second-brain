@@ -175,21 +175,33 @@ export const messages = pgTable('messages', {
 // =============================================================================
 // subscriptions (acesso ao clone via paywall)
 // =============================================================================
-export const subscriptions = pgTable('subscriptions', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  creatorId: uuid('creator_id')
-    .notNull()
-    .references(() => creators.id),
-  userId: uuid('user_id')
-    .notNull()
-    .references(() => users.id),
-  plan: text('plan').notNull(),
-  status: text('status').notNull(),
-  provider: text('provider'),
-  externalId: text('external_id'),
-  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const subscriptions = pgTable(
+  'subscriptions',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    plan: text('plan').notNull(),
+    status: text('status').notNull(),
+    provider: text('provider'),
+    externalId: text('external_id'),
+    currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Idempotency key for the billing webhook (E5.3): a provider event for the
+    // same subscription upserts this row instead of inserting a duplicate.
+    // NULL external_ids (e.g. seed/test rows) stay distinct under SQL UNIQUE.
+    providerExternalIdUq: uniqueIndex('subscriptions_provider_external_id_uq').on(
+      t.provider,
+      t.externalId,
+    ),
+  }),
+);
 
 // =============================================================================
 // Typed re-exports — facilitam imports.

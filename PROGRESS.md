@@ -7,10 +7,10 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E5 — Auth, paywall e billing** (2/3 tarefas).
-- **Próxima tarefa:** **E5.3** — Webhook idempotente de billing (`POST /api/billing/webhook`); cria/atualiza `subscriptions` (Stripe MVP).
+- **Épico atual:** **E5 — Auth, paywall e billing** ✅ **CONCLUÍDO (3/3 tarefas)**.
+- **Próxima tarefa:** **E6.1** — Landing `/c/[slug]` (início do épico E6, frontend MVP). ⚠️ Fim de épico E5 → parar para revisão humana.
 - **Último commit:** `975b9e6 E5.2: middleware requireAccess (paywall) + GET /api/c/:slug/access`.
-- **Testes:** 261 verdes em 29 arquivos. Lint + typecheck verdes.
+- **Testes:** 283 verdes em 32 arquivos. Lint + typecheck verdes.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -53,6 +53,17 @@ Auth (Supabase) + paywall prontos:
 - **Testes**: 261 no total (29 arquivos). E5 contribui 29 (jwt unit 7, me-api integração 6, checkAccess unit 8, access-api integração 7, ajustes config 1).
 
 > 🟡 **Follow-up E5.2**: middleware está pronto e protegendo `/api/c/:slug/access`. Falta wirear `requireAuth + requireAccess` no `POST /api/chat` — fazer junto com E6.2 quando o frontend mandar JWT.
+
+## Marco do E5.3 (referência rápida)
+
+Webhook de billing idempotente pronto:
+- **Adapter** (`backend/src/billing/`): interface `BillingProvider` + `StripeBilling` (verificação de assinatura Stripe `t=…,v1=…` via HMAC-SHA256 com `node:crypto`, zero dep — mesmo padrão do JWT do E5.1; tolerância anti-replay de 300s injetável) + `FakeBilling` (replica payloads Stripe, pula assinatura — usado em test) + `factory.ts` por `BILLING_PROVIDER`. Parser `parseStripeEventPayload` valida o evento via Zod e normaliza só `customer.subscription.*` (created/updated/deleted) → `BillingEvent`; outros tipos viram `null` (ack 200). `user_id`/`creator_id` vêm da `metadata` da subscription (setada no checkout, E6.3).
+- **Service** (`services/billing.ts::processBillingEvent`): upsert em `subscriptions` com `onConflictDoUpdate` sobre `(provider, external_id)`. `xmax = 0` no returning distingue `inserted` vs `updated`.
+- **Idempotência**: migration `0003_subscription_idempotency.sql` cria `UNIQUE (provider, external_id)`. Reprocessar o mesmo evento atualiza o row em vez de duplicar. NULLs continuam distintos (seed/test rows sem external_id coexistem).
+- **Rota** (`api/billing.ts`): `POST /api/billing/webhook` público (assinatura É a auth). Lê raw body, adapter verifica+normaliza, service faz upsert. 400 em assinatura/payload inválidos; 200 `{received, ignored}` em evento ignorado; 200 `{received, subscriptionId, action}` no sucesso.
+- **Config**: `BILLING_PROVIDER` (`stripe`|`fake`, default `fake` em test) no Zod; `STRIPE_WEBHOOK_SECRET` já existia.
+- **Biome**: `backend/src/billing/**` já estava no allowlist de `noRestrictedImports` (SDK `stripe` liberado só ali) — mas a impl atual usa só `node:crypto`, sem SDK.
+- **Testes**: 22 novos — 16 unit no adapter Stripe (8 parse: normalize/plan-fallback/canceled/null-unrelated/missing-metadata/malformed-json/bad-shape + 8 assinatura: valid/tampered/wrong-secret/missing-header/malformed-header/replay-tolerance/tolerance-0/no-secret) + 5 integração na rota (ignored→200, payload inválido→400, cria sub+libera acesso, reprocessa idempotente sem duplicar, cancela→bloqueia acesso 402) + 1 ajuste.
 
 ## ▶️ Roteiro de retomada padrão
 
@@ -99,7 +110,7 @@ Auth (Supabase) + paywall prontos:
 ### E5 — Auth, paywall, billing
 - [x] **E5.1** Supabase Auth + trigger `on_auth_user_created` — migration `0002_auth_trigger.sql` cria `handle_new_auth_user()` (SECURITY DEFINER, search_path=public) + trigger AFTER INSERT em `auth.users` que insere em `public.users(external_id=NEW.id::text, email, role='subscriber')` com `ON CONFLICT (external_id) DO NOTHING`. `backend/src/auth/jwt.ts::verifySupabaseJWT` faz HMAC-SHA256 com `node:crypto` (zero dep), valida alg=HS256/sub/exp/assinatura. Middleware `requireAuth` (`api/middleware/require-auth.ts`) lê `Authorization: Bearer`, verifica JWT, faz look-up em `public.users` por `external_id`, seta `c.set('user', AuthenticatedUser)`. Rota demo `GET /api/me` protegida retorna `{id, externalId, email, role}`. `SUPABASE_JWT_SECRET` no Zod config. 14 testes novos: 7 unit do JWT verify (round-trip, bad signature, expired, malformed, alg=none, missing sub) + 6 integração (trigger replica auth→public, 401s pra header faltando/malformed/sig inválida/user não-provisionado, 200 com sub válido).
 - [x] **E5.2** Middleware `requireAccess` — `services/access.ts::checkAccess` puro: operator/creator passam direto; subscriber precisa de `subscriptions` row com status `active`|`trialing` AND `current_period_end > now` (nulo conta como sem expiração). `api/middleware/require-access.ts::requireAccess` Hono middleware: lê `c.get('user')` (precisa do `requireAuth` antes), resolve slug → creator, chama checkAccess. 402 com `{error:'payment_required', reason, creatorId, creatorSlug, checkout:{url:null, message}}`. Rota demo `GET /api/c/:slug/access` (pré-flight pro frontend). 15 testes novos: 8 unit em checkAccess (operator, creator, active, trialing, no_sub, canceled, expired period, clock injection) + 7 integração na rota (401 sem JWT, 404 slug inválido, 402 no_sub, 402 expired, 200 active, 200 operator/creator bypass).
-- [ ] E5.3 Webhook idempotente de billing
+- [x] **E5.3** Webhook idempotente de billing — `POST /api/billing/webhook` + adapter `BillingProvider` (Stripe HMAC + Fake) + upsert idempotente em `(provider, external_id)`. Ver marco acima.
 
 ### E6 — Frontend MVP (pendente)
 - [ ] E6.1 Landing `/c/[slug]`

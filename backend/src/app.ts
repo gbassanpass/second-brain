@@ -1,11 +1,14 @@
 import { Hono } from 'hono';
 import { logger } from 'hono/logger';
 import { createAccessRouter } from './api/access.js';
+import { createBillingRouter } from './api/billing.js';
 import { type ChatRouterDeps, createChatRouter } from './api/chat.js';
 import { createCreatorsRouter } from './api/creators.js';
 import { health } from './api/health.js';
 import { createMeRouter } from './api/me.js';
 import { type EnqueueSyncFn, createSourcesRouter } from './api/sources.js';
+import type { BillingProvider } from './billing/base.js';
+import { createBillingProvider } from './billing/factory.js';
 import { getConfig } from './config.js';
 import type { Database } from './db/client.js';
 import { getDb as getDbReal } from './db/client.js';
@@ -16,6 +19,8 @@ import type { ChatServices } from './services/chat.js';
 import { enqueueIngestSync } from './workers/queue.js';
 
 const defaultEnqueueSync: EnqueueSyncFn = (sourceId) => enqueueIngestSync(sourceId);
+
+const defaultGetBillingProvider: () => BillingProvider = () => createBillingProvider(getConfig());
 
 const defaultGetChatServices: () => ChatServices = () => {
   const config = getConfig();
@@ -51,6 +56,8 @@ export interface AppDeps {
   getChatConfig?: ChatRouterDeps['getConfig'];
   /** Override the JWT secret used by `requireAuth`. Defaults to `getConfig().SUPABASE_JWT_SECRET`. */
   jwtSecret?: string;
+  /** Lazy billing provider — called only by `POST /api/billing/webhook`. */
+  getBillingProvider?: () => BillingProvider;
 }
 
 export function createApp(deps: AppDeps = {}) {
@@ -65,6 +72,13 @@ export function createApp(deps: AppDeps = {}) {
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
   app.route('/api/me', createMeRouter({ getDb, jwtSecret }));
   app.route('/api/c', createAccessRouter({ getDb, jwtSecret }));
+  app.route(
+    '/api/billing',
+    createBillingRouter({
+      getDb,
+      getProvider: deps.getBillingProvider ?? defaultGetBillingProvider,
+    }),
+  );
   app.route(
     '/api/chat',
     createChatRouter({
