@@ -77,6 +77,7 @@
 
 ## FASE 1 — Produtizar (1–3 criadores)
 - [ ] **F1.1** Onboarding semi-automático: implementar `PhylloConnector` (adapter da interface `ContentConnector` criada no E0.4) cobrindo Instagram + YouTube + TikTok via OAuth do Phyllo + webhook de novo conteúdo + transcrição automática. Pré-requisito: criador com conta Business/Creator no IG. Ver `docs/12-connectors.md`.
+  - *Reavaliar ordem:* o **F1.10 (YouTubeConnector público, sem OAuth)** entrega 80% do valor do "colar URL e puxar" sem a fricção do Phyllo. Considerar F1.10 antes de F1.1. Phyllo segue necessário pra IG/TikTok robustos (ver F1.11).
 - [ ] **F1.2** Consentimento (tabela `consents`) no onboarding: conteúdo, voz, imagem (upload de contrato). Regra "só clone de si mesmo" + verificação de identidade.
 - [ ] **F1.3** Voz: adaptador ElevenLabs (PVC); resposta falada opcional; gate por plano Pro. (Prioridade alta — voz retém ~5x mais; doc 10.)
 - [ ] **F1.4** Canal WhatsApp/Telegram (webhook → mesmo pipeline).
@@ -88,6 +89,17 @@
   - *Custo:* Haiku ~US$0,0005 por chunk × 10 chunks do Fausto = ~US$0,005 pra reindexar do zero.
   - *Trigger:* puxar essa task pra antes da F1.5 (KG) se o eval do E4 mostrar passRate < 0.85 em queries indiretas/parafraseadas. KG na F1.5 também ganha um corpus melhor.
   - *Aceite:* novo enum `enriched_kind` na coluna `chunks`; reindex idempotente; eval rerunado com ganho ≥ 5pp no passRate de geopolítica (ou justifique a regressão).
+
+### Inspirado nos screenshots do Delphi (jun/2026) — features candidatas
+> Análise tela-a-tela do Delphi. Ordenadas por ROI/risco. Decidir priorização com humano.
+
+- [ ] **F1.9** **`AddKnowledge` no Studio (ingestão self-service)** — modal "Add Knowledge" igual ao Delphi: opções **URL**, **YouTube (vídeo ou canal)**, **Q&A**, **texto/nota**, **upload de arquivo**. Cada um cai no pipeline de ingestão existente (`POST /api/creators/:slug/documents` + worker). Conteúdo agrupado por **fonte (pasta)** na lista, com word-count. *Baixo risco, alto valor — é só UI + wiring sobre o que já temos. Pré-requisito: gatear `POST documents` (follow-up do E6.4).*
+- [ ] **F1.10** **`YouTubeConnector` público (sem OAuth)** — dado a URL/handle de um canal, usa a **YouTube Data API v3** (só API key, dados públicos, **sem login do criador**) pra listar os vídeos → baixa legendas/áudio → transcreve (`Transcriber`) → `documents`. *Esse é o "só colar a URL e puxar" que o Delphi faz pro YouTube, e é 100% legítimo via API oficial. Forte candidato a vir ANTES do Phyllo (F1.1) — onboarding sem fricção de OAuth.*
+- [ ] **F1.11** **Ingestão de Instagram público por handle** — ⚠️ **decisão pendente (legal/técnico)**. O Delphi puxa o perfil público só com o @. Mas o IG **não tem API pública** pra ler perfil arbitrário sem Graph API + conta Business + OAuth (= caminho do Phyllo/F1.1). Alternativas: (a) Phyllo/Graph API com consentimento (robusto, mas exige conta Business + OAuth); (b) scraping de perfil público (viola ToS do IG, frágil, precisa de proxies/serviço tipo Apify — **conflita com a regra "não raspar terceiros"**, ainda que seja o próprio criador). **Não implementar sem decisão explícita.**
+- [ ] **F1.12** **Loop de feedback de treino no chat** (Delphi "Is this how you'd answer?" + "help improving this response") — no modo Studio/preview, cada resposta do clone ganha um rating rápido (Nada↔Exato) e um fluxo "melhorar resposta" (longo demais? tom? falta algo?). O feedback vira `documents` de alta confiança / ajustes na Persona. *Casa com F1.6 (interview mode) — é a mesma máquina de fidelidade, pela ótica de corrigir respostas ruins em vez de só preencher lacunas.*
+- [ ] **F1.13** **Lista de conversas do criador no Studio** — aba "Conversations" (Me / Minha audiência) com histórico navegável. Já temos os dados (`conversations`/`messages`); falta a UI. *Baixo risco.*
+- [ ] **F1.14** (opcional, gamificação) **Mind Score** — métrica de cobertura/maturidade do clone (ex.: nº de palavras/lacunas preenchidas) com barra "Expert → Master", estilo Delphi. Nudge de engajamento pro criador continuar treinando. *Nice-to-have, Fase 2.*
+- [ ] **F1.15** (Fase 2) **Audience/CRM** — tabela de quem conversou (mensagens, tags, last active), export/sync CRM. Visto no Delphi; é feature de plataforma madura.
 
 ## FASE 1.5 — Camada de fidelidade (knowledge graph) — ver doc 10
 - [ ] **F1.5.1** Extração de entidades/relações/princípios por LLM → `kg_entities`/`kg_relations` com `confidence`.
