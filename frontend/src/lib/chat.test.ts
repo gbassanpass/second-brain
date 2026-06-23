@@ -14,6 +14,7 @@ function source(over: Partial<ChatSource> = {}): ChatSource {
     documentId: 'd1',
     ordinal: 0,
     title: 'Título',
+    url: null,
     score: 0.9,
     rank: 1,
     ...over,
@@ -50,8 +51,8 @@ describe('dedupeSources', () => {
       source({ chunkId: 'c', documentId: 'd2', title: 'Doc 2' }),
     ]);
     expect(out).toEqual([
-      { documentId: 'd1', label: 'de: Doc 1' },
-      { documentId: 'd2', label: 'de: Doc 2' },
+      { documentId: 'd1', label: 'de: Doc 1', url: null },
+      { documentId: 'd2', label: 'de: Doc 2', url: null },
     ]);
   });
 });

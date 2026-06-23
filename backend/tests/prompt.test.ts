@@ -54,7 +54,7 @@ describe('buildSystemPrompt', () => {
       voice: ['z'],
     });
     const sys = buildSystemPrompt(sparse);
-    expect(sys).toContain('Frameworks que X usa ao explicar: (nenhum).');
+    expect(sys).toContain('Frameworks que você usa ao explicar: (nenhum).');
     expect(sys).toContain('Você PODE:\n(nada explicitado)');
     expect(sys).toContain('Você NÃO PODE:\n(nada explicitado)');
   });

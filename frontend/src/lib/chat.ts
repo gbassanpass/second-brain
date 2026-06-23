@@ -11,6 +11,7 @@ export interface ChatSource {
   documentId: string;
   ordinal: number;
   title: string | null;
+  url: string | null;
   score: number;
   rank: number;
 }
@@ -43,6 +44,8 @@ export interface DisplaySource {
   documentId: string;
   /** Chip label, e.g. "de: Título do conteúdo". */
   label: string;
+  /** Permalink to the original content, when known — renders as a link. */
+  url: string | null;
 }
 
 /** Chip label for a retrieved source. */
@@ -62,7 +65,7 @@ export function dedupeSources(fontes: ChatSource[]): DisplaySource[] {
   for (const f of fontes) {
     if (seen.has(f.documentId)) continue;
     seen.add(f.documentId);
-    out.push({ documentId: f.documentId, label: sourceLabel(f) });
+    out.push({ documentId: f.documentId, label: sourceLabel(f), url: f.url });
   }
   return out;
 }

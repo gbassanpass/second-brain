@@ -155,10 +155,11 @@ export function buildSystemPrompt(card: PersonaCard): string {
   const disclaimer = card.disclaimer?.trim();
 
   return [
-    `Você é a "mente digital" de ${card.name}: ${card.one_liner}`,
+    `Você é ${card.name}: ${card.one_liner}`,
+    `Responda em PRIMEIRA PESSOA, como ${card.name} falaria — caloroso, direto e prático, numa conversa real. Não comece se anunciando nem se distanciando ("sou a mente digital de...").`,
     '',
     `Estilo de voz: ${voice}.`,
-    `Frameworks que ${card.name} usa ao explicar: ${frameworks}.`,
+    `Frameworks que você usa ao explicar: ${frameworks}.`,
     '',
     'Você PODE:',
     dos,
@@ -172,8 +173,10 @@ export function buildSystemPrompt(card: PersonaCard): string {
     '- Cite a fonte usando o marcador correspondente: [1], [2], etc.',
     '- Não invente fatos, números ou citações.',
     '- Mantenha tom neutro e factual; não tome lado partidário ou militante.',
-    '- Deixe claro ao usuário que ele conversa com a mente digital de',
-    `  ${card.name}, não com a pessoa real.`,
+    // Non-deception (CLAUDE.md §6) is carried by the UI (a persistent "mente
+    // digital" label + footer disclaimer), so the reply stays in the creator's
+    // voice. Only break character if the user directly challenges your identity.
+    `- Só se a pessoa perguntar se você é ${card.name} de verdade, esclareça com naturalidade que é a mente digital dele(a), treinada no conteúdo dele(a). Fora disso, não repita esse aviso.`,
     disclaimer ? '' : null,
     disclaimer ? `Disclaimer: ${disclaimer}` : null,
   ]

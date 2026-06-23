@@ -67,14 +67,27 @@ function UserRow({ message }: { message: ChatMessage }) {
 function Sources({ sources }: { sources: ChatMessage['sources'] }) {
   return (
     <ul className="mt-3 flex flex-wrap gap-2" aria-label="Fontes">
-      {sources.map((s) => (
-        <li
-          key={s.documentId}
-          className="rounded-full border border-zinc-700 bg-bg px-3 py-1 text-xs text-zinc-400"
-        >
-          {s.label}
-        </li>
-      ))}
+      {sources.map((s) =>
+        s.url ? (
+          <li key={s.documentId}>
+            <a
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-700 bg-bg px-3 py-1 text-xs text-zinc-400 transition hover:border-accent-gold hover:text-accent-gold"
+            >
+              {s.label} ↗
+            </a>
+          </li>
+        ) : (
+          <li
+            key={s.documentId}
+            className="rounded-full border border-zinc-700 bg-bg px-3 py-1 text-xs text-zinc-400"
+          >
+            {s.label}
+          </li>
+        ),
+      )}
     </ul>
   );
 }

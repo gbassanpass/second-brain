@@ -57,6 +57,8 @@ export interface ChatSource {
   documentId: string;
   ordinal: number;
   title: string | null;
+  /** Permalink to the original content (e.g. the Instagram post), when known. */
+  url: string | null;
   score: number;
   rank: number;
 }
@@ -352,7 +354,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
     };
   }
 
-  const titles = await getDocumentTitles(
+  const meta = await getDocumentMeta(
     args.db,
     args.retrieval.hits.map((h) => h.documentId),
   );
@@ -360,7 +362,8 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
     chunkId: h.chunkId,
     documentId: h.documentId,
     ordinal: h.ordinal,
-    title: titles.get(h.documentId) ?? null,
+    title: meta.get(h.documentId)?.title ?? null,
+    url: meta.get(h.documentId)?.url ?? null,
     score: h.rerankScore,
     rank: i,
   }));
@@ -370,7 +373,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
     query: args.query,
     chunks: args.retrieval.hits.map((h) => ({
       text: h.text,
-      title: titles.get(h.documentId) ?? undefined,
+      title: meta.get(h.documentId)?.title ?? undefined,
     })),
     history: args.historyOrdered,
     guardrail: args.guardrail,
@@ -518,14 +521,19 @@ function addOptional(a: number | undefined, b: number | undefined): number | und
   return (a ?? 0) + (b ?? 0);
 }
 
-async function getDocumentTitles(db: Database, ids: string[]): Promise<Map<string, string | null>> {
+interface DocMeta {
+  title: string | null;
+  url: string | null;
+}
+
+async function getDocumentMeta(db: Database, ids: string[]): Promise<Map<string, DocMeta>> {
   const unique = Array.from(new Set(ids));
   if (unique.length === 0) return new Map();
   const rows = await db
-    .select({ id: documents.id, title: documents.title })
+    .select({ id: documents.id, title: documents.title, url: documents.url })
     .from(documents)
     .where(inArray(documents.id, unique));
-  return new Map(rows.map((r) => [r.id, r.title]));
+  return new Map(rows.map((r) => [r.id, { title: r.title, url: r.url }]));
 }
 
 /** Helper for the route layer to validate creator existence. */
