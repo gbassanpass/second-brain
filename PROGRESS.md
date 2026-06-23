@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E1 — Ingestão & second brain** (2/5 tarefas).
 - **Próxima tarefa:** **E1.3** — Pipeline de chunking (300–500 tokens, overlap 15%) + embeddings + `tsvector('portuguese')` populado por trigger.
-- **Último commit:** `E1.2: ingest endpoint + make ingest-fausto`.
+- **Último commit:** `d8a08ef E1.2: ingest endpoint + make ingest-fausto`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
