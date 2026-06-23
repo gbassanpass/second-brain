@@ -9,8 +9,8 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
 - **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 apify (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
-- **Último commit:** `2afad17 F1.x: onboarding self-signup (criar clone + conectar Instagram) — frontend`.
-- **Testes:** 351 verdes (319 backend + 32 frontend). Lint + typecheck verdes.
+- **Último commit:** `be238ac feat(landing): marketing page do produto (estilo delphi.ai)`.
+- **Testes:** 354 verdes (322 backend + 32 frontend). Lint + typecheck verdes.
 
 > ✅ **F1.11 — Instagram por handle VALIDADO COM DADOS REAIS** (token Apify no `.env`): `@faustobassan` → **8 posts reais** (Groenlândia/Trump, eleições 2026, EUA×Irã, agricultura BR…) → docs+chunks indexados em ~16s; o chat respondeu "Por que Trump quer anexar a Groenlândia?" citando o post do IG `[1]`. Stack: scraper `backend/src/scrapers/` (`ApifyInstagramScraper` run-sync-get-dataset-items + `FakeInstagramScraper`) → `InstagramConnector` (ContentConnector) → reusa `syncContentSource`. Endpoint gated `POST /api/creators/:slug/sources/instagram {handle,limit?}`. Config: `SCRAPER_PROVIDER`/`APIFY_TOKEN`/`APIFY_INSTAGRAM_ACTOR`/`INSTAGRAM_RESULTS_LIMIT`. Markdown do chat também renderiza (react-markdown).
 > ✅ **Fase 1 — onboarding/produto (self-signup) PRONTO E VERIFICADO.** Fluxo estilo Delphi: criar clone do zero → conectar Instagram → importa → conversar.
