@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E1 — Ingestão & second brain** (3/5 tarefas).
 - **Próxima tarefa:** **E1.4** — Worker BullMQ de ingestão (processo separado), com status em `content_sources` (`pending → indexing → indexed`); `POST /sources/{id}/sync` enfileira.
-- **Último commit:** `E1.3: chunker + indexDocument + HNSW EXPLAIN`.
+- **Último commit:** `e5c08c5 E1.3: chunker + indexDocument + HNSW EXPLAIN`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
