@@ -9,7 +9,7 @@
 ### Épico E0 — Scaffolding & infra
 - [x] **E0.1** Monorepo **pnpm workspaces** com `/backend` (Hono + TS), `/frontend` (Next.js 14 + TS), `/infra`, `/docs`, `/eval`, `/data/fausto`. Biome + Vitest configurados na raiz. Makefile fino expõe os comandos do doc 08 (`make up`, `make dev`, etc.).
   - *Aceite:* `pnpm install` na raiz instala tudo; `make up` sobe Supabase local (CLI) + Redis (docker-compose) + backend + frontend; healthcheck `GET /api/health` responde 200; `pnpm lint` e `pnpm test` rodam sem erro.
-- [ ] **E0.2** Supabase CLI configurada (`infra/supabase/config.toml`); Drizzle ORM + Drizzle Kit configurados; schema em `backend/src/db/schema.ts` espelhando o doc 04 (todas as tabelas + índices HNSW/GIN + extensões `vector` e `pg_trgm`).
+- [x] **E0.2** Supabase CLI configurada (`infra/supabase/config.toml`); Drizzle ORM + Drizzle Kit configurados; schema em `backend/src/db/schema.ts` espelhando o doc 04 (todas as tabelas + índices HNSW/GIN + extensões `vector` e `pg_trgm`).
   - *Aceite:* `make migrate` roda `drizzle-kit migrate` contra `DATABASE_URL_DIRECT` e aplica todas as tabelas/índices; `\d chunks` no psql mostra HNSW em `embedding` e GIN em `tsv`. Bucket `creator-content` criado no Supabase Storage via migration/script.
 - [ ] **E0.3** Camada de config (.env do doc 08) + carregamento tipado com **Zod** (`backend/src/config.ts`).
   - *Aceite:* app falha no boot com mensagem clara se faltar env obrigatória; envs de provedor têm valores default seguros em modo `test` (usam fakes).

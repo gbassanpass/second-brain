@@ -1,5 +1,8 @@
-import 'dotenv/config';
+import { config as loadEnv } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
+
+// Lê o .env da raiz do monorepo (um nível acima de /backend).
+loadEnv({ path: new URL('../.env', import.meta.url).pathname });
 
 const url = process.env.DATABASE_URL_DIRECT ?? process.env.DATABASE_URL;
 if (!url) {

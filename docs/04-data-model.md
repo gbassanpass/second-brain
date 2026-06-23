@@ -2,7 +2,7 @@
 
 > Todas as tabelas de conteúdo e conversa têm `creator_id` (multi-tenant desde o dia 1). Use UUIDs. Habilite `CREATE EXTENSION vector;`.
 >
-> **Hospedagem:** o schema roda no Supabase (Postgres 16 + pgvector). Em dev local, `supabase start` provisiona um Postgres idêntico ao de produção. As migrations são geradas com **Drizzle Kit** e aplicadas via `DATABASE_URL_DIRECT` (conexão direta, não pelo pooler — o transaction pooler quebra DDL).
+> **Hospedagem:** o schema roda no Supabase (Postgres 17 + pgvector). Em dev local, `supabase start` provisiona um Postgres idêntico ao de produção. As migrations são geradas com **Drizzle Kit** e aplicadas via `DATABASE_URL_DIRECT` (conexão direta, não pelo pooler — o transaction pooler quebra DDL).
 >
 > **Auth:** o Supabase mantém seu próprio schema `auth` com a tabela `auth.users`. Nossa tabela `users` (abaixo) é uma projeção da aplicação: `users.external_id` referencia `auth.users.id`. Trigger no Supabase replica novo signup para `public.users`.
 >

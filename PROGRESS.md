@@ -8,63 +8,15 @@
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E0 — Scaffolding & infra**.
-- **Tarefa em andamento:** **E0.2 (WIP)** — código pronto; aguardando Docker para o smoke final.
-- **Próxima ação:** rodar `make up && make migrate` quando o Docker Desktop estiver rodando, validar `\d chunks` mostrando HNSW + GIN, marcar checkbox.
+- **Próxima tarefa:** **E0.3** — Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env obrigatória.
+- **Último commit:** atualizado pelo commit do E0.2.
 
-### E0.2 — o que já foi feito (commit pendente)
-- `infra/supabase/config.toml` gerado por `supabase init` (project_id = `second-brain`).
-- Deps no backend: `drizzle-orm`, `drizzle-zod`, `drizzle-kit`, `postgres`, `dotenv`.
-- `backend/drizzle.config.ts` apontando para `DATABASE_URL_DIRECT`.
-- `backend/src/db/schema.ts` espelhando o `docs/04` inteiro (9 tabelas, vector(1536), tsvector custom type, HNSW + GIN + creator_idx + unique(creator_id, content_hash)).
-- `backend/src/db/client.ts` (postgres-js + drizzle, pooler-safe).
-- Migration `0000_curly_the_initiative.sql` (gerada + extensões pgvector/pg_trgm no topo).
-- Migration `0001_tsv_and_storage.sql` (trigger `chunks_tsv_update` + bucket `creator-content`).
-- `make migrate` / `make migrate-gen` plugados no `drizzle-kit`.
+## ▶️ Roteiro de retomada padrão
 
-## ⛔ Bloqueios atuais
-
-- **Docker Desktop não estava rodando antes do restart do PC.** Reabra após o restart.
-  - O restart do macOS deve resolver. Após o boot: abrir Docker Desktop, esperar ícone "Engine running" verde.
-  - Confirmação no terminal: `docker info --format '{{.ServerVersion}}'` — qualquer versão impressa = OK.
-
-## ▶️ Roteiro exato de retomada (cole na próxima sessão)
-
-```text
-Olá Claude. Estou voltando ao projeto após reiniciar o PC.
-
-1. Leia PROGRESS.md (este arquivo) e CLAUDE.md.
-2. Confirme com `docker info --format '{{.ServerVersion}}'` que o Docker está ativo.
-3. Continue o E0.2 do ponto exato:
-   a. `make up` (sobe Supabase local + Redis local).
-   b. Após o supabase start imprimir as chaves, copie para .env:
-      SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY,
-      DATABASE_URL, DATABASE_URL_DIRECT (locais).
-   c. `make migrate` (aplica 0000 + 0001 via drizzle-kit).
-   d. Smoke do schema: psql contra DATABASE_URL_DIRECT, rodar `\d chunks` e
-      confirmar `chunks_embedding_hnsw_idx` (HNSW) e `chunks_tsv_gin_idx` (GIN).
-   e. Smoke do trigger: `INSERT INTO chunks (creator_id, document_id, ordinal, text)`
-      seguido de `SELECT tsv FROM chunks` — tsv deve estar populado.
-   f. Smoke do bucket: `SELECT id FROM storage.buckets WHERE id='creator-content'`.
-4. Marque o checkbox de E0.2 em docs/07-roadmap-backlog.md E em PROGRESS.md.
-5. Atualize a seção "Decisões consolidadas" do PROGRESS.md trocando "Postgres 16"
-   por "Postgres 17" (e nos docs 03/04/CLAUDE.md). É um achado real do E0.2.
-6. Commit "E0.2: smoke + checkboxes" + push.
-7. Pare para revisão antes do E0.3.
-```
-
-## Notas técnicas (E0.2)
-
-- **Postgres 17** (default do Supabase CLI 2.107). Os docs `03/04/CLAUDE.md` mencionam "Postgres 16" — atualizar quando o smoke passar (passo 5 do roteiro acima).
-- Migrations seguem o jeito Drizzle: cada `.sql` em `infra/supabase/migrations/` + journal em `meta/`. Snapshots da `meta/` são ignorados pelo Biome.
-- Drizzle Kit usa `DATABASE_URL_DIRECT` (conexão direta) — o transaction pooler do Supabase quebra DDL.
-
-## Estado do repo no restart
-
-- **Último commit:** `6f7b3ad cleanup: remove stray supabase/ at root`.
-- **Branch:** `main`, sincronizada com `origin/main`.
-- **Working tree:** limpo (`git status` deve estar vazio ao voltar).
-- **Containers Docker:** nenhum (Docker estava parado quando o usuário reiniciou).
-- **`.env` local:** ainda não existe — criar do `.env.example` no passo 3b acima.
+1. `docker info --format '{{.ServerVersion}}'` — confirma Docker rodando.
+2. `make up` — Supabase local + Redis. Se for primeira vez na sessão, supabase imprime as chaves no terminal; já estão salvas no `.env`.
+3. `make migrate` — idempotente; pode rodar sempre.
+4. Trabalhe a próxima tarefa, atualize `PROGRESS.md` + checkbox no `docs/07-roadmap-backlog.md`, commit + push.
 
 ## Checklist da Fase 0
 

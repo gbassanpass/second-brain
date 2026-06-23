@@ -9,7 +9,7 @@
 | ORM / queries | **Drizzle ORM** | suporte nativo a `pgvector` (coluna `vector`, operadores `<=>`); SQL puro para busca híbrida/RRF |
 | Migrations | **Drizzle Kit** | gera SQL; aplicadas via `DATABASE_URL_DIRECT` (não pelo pooler) |
 | Fila / workers | **BullMQ + Redis** | ingestão e transcrição assíncronas; worker é processo Node separado |
-| DB | **Supabase Postgres 16 + pgvector** | gerenciado; dev local via `supabase start` |
+| DB | **Supabase Postgres 17 + pgvector** | gerenciado; dev local via `supabase start` |
 | Storage | **Supabase Storage** | uploads de áudio/vídeo/PDF do criador (bucket por `creator_id`) |
 | Auth | **Supabase Auth** | e-mail/magic link, OAuth Google/Apple; sessão JWT validada no Hono |
 | LLM | Anthropic Claude | `claude-haiku` default, `claude-sonnet` fallback; prompt caching |

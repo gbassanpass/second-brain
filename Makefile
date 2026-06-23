@@ -2,6 +2,9 @@
 # Veja docs/08-setup-and-env.md para detalhes de cada alvo.
 
 SHELL := /bin/bash
+# Inclui /opt/homebrew/bin (Apple Silicon) e /usr/local/bin (Intel) no PATH
+# para que `command -v supabase` funcione no subshell do make.
+export PATH := /opt/homebrew/bin:/usr/local/bin:$(PATH)
 .DEFAULT_GOAL := help
 
 COMPOSE := docker compose -f infra/docker-compose.yml
@@ -13,10 +16,17 @@ help: ## Lista os alvos disponíveis
 
 up: ## Sobe Redis (docker-compose) + Supabase CLI
 	$(COMPOSE) up -d
-	@command -v supabase >/dev/null 2>&1 && (cd infra && supabase start) || echo "[warn] supabase CLI não instalado — instale com: brew install supabase/tap/supabase"
+	@if command -v supabase >/dev/null 2>&1; then \
+		cd infra && supabase start; \
+	else \
+		echo "[warn] supabase CLI não instalado — instale com: brew install supabase/tap/supabase"; \
+		exit 1; \
+	fi
 
 down: ## Para Redis + Supabase
-	@command -v supabase >/dev/null 2>&1 && (cd infra && supabase stop) || true
+	@if command -v supabase >/dev/null 2>&1; then \
+		(cd infra && supabase stop) || true; \
+	fi
 	$(COMPOSE) down
 
 dev: ## Backend + frontend em watch

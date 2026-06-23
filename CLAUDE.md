@@ -19,7 +19,7 @@ Não é fine-tuning de modelo. É **RAG** (retrieval-augmented generation) + pro
 ## Stack (resumo — detalhes em docs/03-tech-stack.md)
 
 - **Backend:** Node 20 + TypeScript + **Hono**. Validação com **Zod**. Jobs assíncronos com **BullMQ + Redis**.
-- **DB + Auth + Storage:** **Supabase** (Postgres 16 + extensão `pgvector` + Supabase Auth + Supabase Storage). Migrations com **Drizzle Kit** (SQL puro); dev local via **Supabase CLI** (`supabase start`).
+- **DB + Auth + Storage:** **Supabase** (Postgres 17 + extensão `pgvector` + Supabase Auth + Supabase Storage). Migrations com **Drizzle Kit** (SQL puro); dev local via **Supabase CLI** (`supabase start`).
 - **ORM/queries:** **Drizzle ORM** (suporte nativo a `pgvector`, queries tipadas, raw SQL quando precisar — ex.: RRF na busca híbrida).
 - **LLM:** Claude (Anthropic API). Default `claude-haiku`, fallback `claude-sonnet` para perguntas complexas. Camada de abstração `llm/` para permitir trocar provedor.
 - **Embeddings:** OpenAI `text-embedding-3-small` (abstrair em `embeddings/`).
