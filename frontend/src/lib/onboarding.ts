@@ -9,11 +9,12 @@ export interface CreatedClone {
   displayName: string;
 }
 
+/** Async import: the endpoint enqueues a job and returns immediately. */
 export interface ImportResult {
+  sourceId: string;
   handle: string;
   status: string;
-  docs: { total: number; inserted: number; duplicate: number };
-  chunks: { created: number };
+  jobId?: string;
 }
 
 /**

@@ -2,6 +2,7 @@ import { config as loadEnv } from 'dotenv';
 import { ConfigError, getConfig } from '../config.js';
 import { closeDb, getDb } from '../db/client.js';
 import { createEmbedder } from '../embeddings/factory.js';
+import { createLLMClient } from '../llm/factory.js';
 import { startIngestWorker } from '../workers/ingest.js';
 
 loadEnv({ path: new URL('../../../.env', import.meta.url).pathname });
@@ -24,6 +25,8 @@ async function main() {
     redisUrl: config.REDIS_URL,
     db,
     embedder,
+    llm: createLLMClient(config),
+    personaModel: config.LLM_DEFAULT_MODEL,
     onCompleted: (sourceId, result) => {
       console.info(
         `[worker:ingest] indexed source=${sourceId} docs=${result.docs.total} inserted=${result.docs.inserted} chunks=${result.chunks.created}`,

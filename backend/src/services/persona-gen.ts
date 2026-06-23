@@ -1,6 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { documents } from '../db/schema.js';
+import { contentSources, creators, documents } from '../db/schema.js';
 import type { LLMClient } from '../llm/base.js';
 import { type PersonaCard, personaCardSchema } from '../rag/persona.js';
 import { setPersonaCard } from './persona.js';
@@ -145,4 +145,44 @@ export async function generatePersonaCard(
     }
   }
   throw lastErr ?? new PersonaGenError('failed to generate persona');
+}
+
+/**
+ * Post-import hook for the worker: if the source's creator has no Persona Card
+ * yet, auto-generate one from the freshly imported content. Best-effort — never
+ * throws (a failed persona gen must not fail the ingestion job). Returns whether
+ * a card was generated.
+ */
+export async function trainPersonaIfMissing(
+  db: Database,
+  llm: LLMClient,
+  sourceId: string,
+  model: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({
+      creatorId: creators.id,
+      slug: creators.slug,
+      displayName: creators.displayName,
+      niche: creators.niche,
+      personaCard: creators.personaCard,
+    })
+    .from(contentSources)
+    .innerJoin(creators, eq(creators.id, contentSources.creatorId))
+    .where(eq(contentSources.id, sourceId))
+    .limit(1);
+  if (!row || row.personaCard) return false; // unknown source, or persona already set
+
+  try {
+    await generatePersonaCard(db, llm, {
+      creatorId: row.creatorId,
+      slug: row.slug,
+      displayName: row.displayName,
+      niche: row.niche,
+      model,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }

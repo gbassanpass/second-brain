@@ -5,7 +5,6 @@ import {
   type CreatedClone,
   type ImportResult,
   createClone,
-  generatePersona,
   importInstagram,
   parseInstagramHandle,
 } from '../../lib/onboarding';
@@ -68,15 +67,14 @@ export default function OnboardingPage() {
     setBusy(true);
     setError(null);
     try {
-      setBusyLabel('Importando seus posts…');
+      setBusyLabel('Iniciando a importação…');
+      // Async: enqueues the import; the worker scrapes → indexes → treina a
+      // persona em segundo plano. Não prende o usuário aqui.
       const result = await importInstagram(clone.slug, handle, accessToken);
       setImported(result);
-      // Train the voice from what we just imported (best-effort).
-      setBusyLabel('Treinando a persona…');
-      await generatePersona(clone.slug, accessToken);
       setStep('done');
     } catch {
-      setError('Não consegui importar agora. Tente novamente.');
+      setError('Não consegui iniciar a importação agora. Tente novamente.');
     } finally {
       setBusy(false);
     }
@@ -138,12 +136,13 @@ export default function OnboardingPage() {
 
       {step === 'done' && clone && (
         <section className="flex flex-col gap-4 text-center">
-          <h1 className="text-2xl font-semibold">{clone.displayName} está pronto 🎉</h1>
+          <h1 className="text-2xl font-semibold">{clone.displayName} está quase pronto 🎉</h1>
           {imported ? (
             <p className="text-sm text-zinc-400">
-              Importei <strong className="text-zinc-200">{imported.docs.inserted}</strong> posts do
-              Instagram em <strong className="text-zinc-200">{imported.chunks.created}</strong>{' '}
-              trechos indexados.
+              Estamos importando seu Instagram e treinando a persona{' '}
+              <strong className="text-zinc-200">em segundo plano</strong> — pode levar alguns
+              minutos. Acompanhe o status em <strong className="text-zinc-200">Fontes</strong>, no
+              Studio. Você já pode começar a conversar.
             </p>
           ) : (
             <p className="text-sm text-zinc-400">

@@ -1,10 +1,13 @@
 import { resolve } from 'node:path';
 import { and, eq } from 'drizzle-orm';
+import { getConfig } from '../config.js';
 import type { ContentConnector } from '../connectors/base.js';
+import { InstagramConnector } from '../connectors/instagram.js';
 import { ManualUploadConnector } from '../connectors/manual.js';
 import type { Database } from '../db/client.js';
 import { contentSources, creators } from '../db/schema.js';
 import type { Embedder } from '../embeddings/base.js';
+import { createInstagramScraper } from '../scrapers/factory.js';
 import { upsertDocument } from './documents.js';
 import { ensureDocumentIndexed } from './indexing.js';
 
@@ -86,13 +89,23 @@ export async function syncContentSource(
   }
 }
 
-function defaultManualConnector(source: SyncSource, opts: SyncSourceOptions): ContentConnector {
-  if (source.kind !== 'manual') {
-    throw new Error(`syncContentSource: no connector for source kind: ${source.kind}`);
+function defaultConnectorForSource(source: SyncSource, opts: SyncSourceOptions): ContentConnector {
+  if (source.kind === 'manual') {
+    const repoRoot = resolve(new URL('../../../', import.meta.url).pathname);
+    const baseDir = opts.dataDir ?? source.externalRef ?? resolve(repoRoot, 'data', source.slug);
+    return new ManualUploadConnector({ baseDir });
   }
-  const repoRoot = resolve(new URL('../../../', import.meta.url).pathname);
-  const baseDir = opts.dataDir ?? source.externalRef ?? resolve(repoRoot, 'data', source.slug);
-  return new ManualUploadConnector({ baseDir });
+  if (source.kind === 'instagram') {
+    // Built from config so the BullMQ worker can process Instagram imports
+    // without the caller injecting a scraper (async path, F1.11).
+    const config = getConfig();
+    return new InstagramConnector({
+      scraper: createInstagramScraper(config),
+      handle: source.externalRef ?? '',
+      limit: config.INSTAGRAM_RESULTS_LIMIT,
+    });
+  }
+  throw new Error(`syncContentSource: no connector for source kind: ${source.kind}`);
 }
 
 async function runConnectorForSource(
@@ -103,7 +116,7 @@ async function runConnectorForSource(
 ): Promise<SyncSourceCounts> {
   const connector = opts.buildConnector
     ? opts.buildConnector(source)
-    : defaultManualConnector(source, opts);
+    : defaultConnectorForSource(source, opts);
   const counts: SyncSourceCounts = {
     docs: { total: 0, inserted: 0, duplicate: 0 },
     chunks: { created: 0 },

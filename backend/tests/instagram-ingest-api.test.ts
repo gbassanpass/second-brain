@@ -6,7 +6,9 @@ import { createApp } from '../src/app.js';
 import { signJwtForTesting } from '../src/auth/jwt.js';
 import { closeDb, getDb } from '../src/db/client.js';
 import { chunks, contentSources, creators, documents, users } from '../src/db/schema.js';
+import { FakeEmbedder } from '../src/embeddings/fake.js';
 import { ensureCreatorBySlug } from '../src/services/documents.js';
+import { syncContentSource } from '../src/services/source-ingest.js';
 
 const DB_URL =
   process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:54322/postgres';
@@ -29,15 +31,23 @@ if (!dbReachable) {
   console.warn('[instagram-ingest-api] skipped — DATABASE_URL not reachable (run `make up`).');
 }
 
-describe.skipIf(!dbReachable)('POST /api/creators/:slug/sources/instagram (F1.11)', () => {
+describe.skipIf(!dbReachable)('POST /api/creators/:slug/sources/instagram — async (F1.11)', () => {
   const slug = `ig-${randomUUID().slice(0, 8)}`;
   let creatorId = '';
   const authIds: string[] = [];
   let operatorToken = '';
   let subscriberToken = '';
-  // SCRAPER_PROVIDER + EMBEDDINGS_PROVIDER default to 'fake' in test → no
-  // Apify token / OpenAI key needed; the whole import runs deterministically.
-  const app = createApp({ getDb: () => getDb(DB_URL), jwtSecret: JWT_SECRET });
+  // Capture enqueued jobs instead of hitting Redis. The worker path is tested
+  // separately by calling syncContentSource directly below.
+  const enqueued: string[] = [];
+  const app = createApp({
+    getDb: () => getDb(DB_URL),
+    jwtSecret: JWT_SECRET,
+    enqueueSync: async (sourceId: string) => {
+      enqueued.push(sourceId);
+      return { jobId: `job-${sourceId}` };
+    },
+  });
 
   async function provision(role: 'operator' | 'subscriber'): Promise<string> {
     const authId = randomUUID();
@@ -97,46 +107,42 @@ describe.skipIf(!dbReachable)('POST /api/creators/:slug/sources/instagram (F1.11
     expect((await post(operatorToken, { handle: '' })).status).toBe(400);
   });
 
-  it('imports posts → documents + chunks, and is idempotent', async () => {
-    const res = await post(operatorToken, { handle: '@faustobassan', limit: 3 });
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      handle: string;
-      status: string;
-      docs: { total: number; inserted: number; duplicate: number };
-      chunks: { created: number };
-    };
-    expect(body.status).toBe('indexed');
-    expect(body.docs.inserted).toBeGreaterThan(0);
-    expect(body.chunks.created).toBeGreaterThan(0);
+  it('enqueues the import and returns 202 with a pending source', async () => {
+    const res = await post(operatorToken, { handle: '@faustobassan' });
+    expect(res.status).toBe(202);
+    const body = (await res.json()) as { sourceId: string; status: string; handle: string };
+    expect(body.status).toBe('pending');
+    expect(body.handle).toBe('@faustobassan');
+    expect(enqueued).toContain(body.sourceId);
 
-    const db = getDb(DB_URL);
-    const docCount = await db
-      .select({ id: documents.id })
-      .from(documents)
-      .where(eq(documents.creatorId, creatorId));
-    expect(docCount.length).toBe(body.docs.inserted);
-
-    // The content_source shows up indexed (Studio "Fontes").
-    const [src] = await db
+    // The content_source exists as instagram/pending (Studio "Fontes").
+    const [src] = await getDb(DB_URL)
       .select({ kind: contentSources.kind, status: contentSources.status })
+      .from(contentSources)
+      .where(eq(contentSources.id, body.sourceId))
+      .limit(1);
+    expect(src).toMatchObject({ kind: 'instagram', status: 'pending' });
+  });
+
+  it('worker path (syncContentSource) imports posts → docs + chunks, idempotent', async () => {
+    // Simulates what the BullMQ worker does for the enqueued job: the default
+    // connector resolves the Instagram scraper (fake in test) from config.
+    const db = getDb(DB_URL);
+    const [src] = await db
+      .select({ id: contentSources.id })
       .from(contentSources)
       .where(eq(contentSources.creatorId, creatorId))
       .limit(1);
-    expect(src).toMatchObject({ kind: 'instagram', status: 'indexed' });
+    if (!src) throw new Error('expected an instagram source from the previous test');
 
-    // Re-import: same captions → all duplicates, no new docs.
-    const second = (await (
-      await post(operatorToken, { handle: '@faustobassan', limit: 3 })
-    ).json()) as {
-      docs: { inserted: number; duplicate: number };
-    };
+    const embedder = new FakeEmbedder({ dimensions: 1536 });
+    const first = await syncContentSource(db, embedder, src.id);
+    expect(first.status).toBe('indexed');
+    expect(first.docs.inserted).toBeGreaterThan(0);
+    expect(first.chunks.created).toBeGreaterThan(0);
+
+    const second = await syncContentSource(db, embedder, src.id);
     expect(second.docs.inserted).toBe(0);
     expect(second.docs.duplicate).toBeGreaterThan(0);
-    const after = await db
-      .select({ id: documents.id })
-      .from(documents)
-      .where(eq(documents.creatorId, creatorId));
-    expect(after.length).toBe(docCount.length);
   });
 });

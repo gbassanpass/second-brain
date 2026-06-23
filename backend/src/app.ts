@@ -15,7 +15,6 @@ import { getDb as getDbReal } from './db/client.js';
 import { createEmbedder } from './embeddings/factory.js';
 import { createLLMClient } from './llm/factory.js';
 import { createReranker } from './rerank/factory.js';
-import { createInstagramScraper } from './scrapers/factory.js';
 import type { ChatServices } from './services/chat.js';
 import { enqueueIngestSync } from './workers/queue.js';
 
@@ -81,9 +80,7 @@ export function createApp(deps: AppDeps = {}) {
     '/api/creators',
     createCreatorsRouter({
       ...authDeps,
-      getEmbedder: () => createEmbedder(getConfig()),
-      getScraper: () => createInstagramScraper(getConfig()),
-      instagramLimit: getConfig().INSTAGRAM_RESULTS_LIMIT,
+      enqueueSync: deps.enqueueSync ?? defaultEnqueueSync,
       getLLM: () => createLLMClient(getConfig()),
       personaModel: getConfig().LLM_DEFAULT_MODEL,
     }),

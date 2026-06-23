@@ -1,14 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
-import { InstagramConnector } from '../connectors/instagram.js';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
-import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
 import { personaCardSchema } from '../rag/persona.js';
-import { ScraperError } from '../scrapers/base.js';
-import type { InstagramScraper } from '../scrapers/base.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
 import {
   createCreator,
@@ -20,13 +16,14 @@ import {
 import { upsertDocument } from '../services/documents.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
-import { ensureInstagramSource, syncContentSource } from '../services/source-ingest.js';
+import { ensureInstagramSource } from '../services/source-ingest.js';
 import {
   type AuthVariables,
   type RequireAuthDeps,
   requireAuth,
 } from './middleware/require-auth.js';
 import { requireRole } from './middleware/require-role.js';
+import type { EnqueueSyncFn } from './sources.js';
 
 const createDocumentBody = z.object({
   rawText: z.string().min(1),
@@ -38,13 +35,9 @@ const createDocumentBody = z.object({
 });
 
 export interface CreatorsRouterDeps extends RequireAuthDeps {
-  /** Embedder for inline indexing of imported content. */
-  getEmbedder?: () => Embedder;
-  /** Public-content scraper (Instagram by handle). */
-  getScraper?: () => InstagramScraper;
-  /** Default max posts to pull per Instagram import. */
-  instagramLimit?: number;
-  /** LLM for auto-generating the Persona Card from content. */
+  /** Enqueue the async ingestion job (BullMQ) for a content source. */
+  enqueueSync?: EnqueueSyncFn;
+  /** LLM for auto-generating the Persona Card from content (manual re-gen). */
   getLLM?: () => LLMClient;
   /** Model used for persona generation. */
   personaModel?: string;
@@ -52,7 +45,6 @@ export interface CreatorsRouterDeps extends RequireAuthDeps {
 
 const instagramBody = z.object({
   handle: z.string().min(1).max(120),
-  limit: z.number().int().positive().max(200).optional(),
 });
 
 const createCreatorBody = z.object({
@@ -171,42 +163,28 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     );
   });
 
-  // Import public Instagram content by handle (F1.11) — gated, runs the same
-  // sync pipeline (dedup + index + status) as the manual connector.
+  // Import public Instagram content by handle (F1.11) — gated. ASYNC: enqueues
+  // a BullMQ job and returns immediately (202) so the user isn't blocked while
+  // a big profile is scraped/indexed. The worker scrapes → indexes → trains the
+  // persona; the Studio "Fontes" reflects status (pending → indexing → indexed).
   router.post('/:slug/sources/instagram', ...studioGate, async (c) => {
     const json = await c.req.json().catch(() => null);
     const parsed = instagramBody.safeParse(json);
     if (!parsed.success) {
       return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
     }
-    if (!deps.getEmbedder || !deps.getScraper) {
+    if (!deps.enqueueSync) {
       return c.json({ error: 'ingest_not_configured' }, 503);
     }
     const owned = await ownedCreatorId(c);
     if (typeof owned !== 'string') return owned;
-    const creatorId = owned;
 
-    const db = getDb();
-    const source = await ensureInstagramSource(db, creatorId, parsed.data.handle);
-    const scraper = deps.getScraper();
-    const limit = parsed.data.limit ?? deps.instagramLimit ?? 30;
-
-    try {
-      const result = await syncContentSource(db, deps.getEmbedder(), source.id, {
-        buildConnector: (src) =>
-          new InstagramConnector({
-            scraper,
-            handle: src.externalRef ?? parsed.data.handle,
-            limit,
-          }),
-      });
-      return c.json({ handle: parsed.data.handle, ...result });
-    } catch (err) {
-      if (err instanceof ScraperError) {
-        return c.json({ error: 'scraper_failed', message: err.message }, 502);
-      }
-      throw err;
-    }
+    const source = await ensureInstagramSource(getDb(), owned, parsed.data.handle);
+    const { jobId } = await deps.enqueueSync(source.id);
+    return c.json(
+      { sourceId: source.id, handle: parsed.data.handle, status: 'pending', jobId },
+      202,
+    );
   });
 
   // Persona Card is creator/operator-only — it carries the full prompt
