@@ -9,7 +9,7 @@
 - **Fase:** 0 — MVP single-tenant para o Fausto.
 - **Épico atual:** **E6 — Frontend MVP ✅ CONCLUÍDO (5/5)**. 🎉 **FASE 0 COMPLETA (E0–E6).**
 - **Próxima tarefa:** **Fase 1 — produtizar** (F1.x): F1.1 PhylloConnector (onboarding semi-automático IG/YT/TikTok), F1.2 consentimento, F1.3 voz (ElevenLabs), etc. Ver `docs/07-roadmap-backlog.md §FASE 1`. **Parar para revisão humana / decisão de priorização da Fase 1.**
-- **Último commit:** `06e8d1b E6.4: Studio do criador (/studio/[slug])`.
+- **Último commit:** `b774fd3 E6.5: analytics cards no Studio — fecha a Fase 0`.
 - **Testes:** 331 verdes em 39 arquivos. Lint + typecheck verdes.
 
 > 🎉 **Definition of Done da Fase 0 atingida**: Fausto indexado (5 docs/10 chunks); chat cita fontes; guardrail de investimento verde no eval (E4); login + paywall + checkout funcionando; **custo medido ~US$0,0036/resposta** (analytics E6.5, bem abaixo do alvo US$0,05); toda conversa logada em `messages`.
