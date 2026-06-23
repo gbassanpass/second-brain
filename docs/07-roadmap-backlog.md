@@ -29,7 +29,7 @@
   - *Aceite:* arquivo de áudio PT em `data/fausto/audio/` vira transcript em `documents` (`kind='transcript'`).
 
 ### Épico E2 — Núcleo RAG
-- [ ] **E2.1** Busca híbrida: vetorial (cosine, top-50) + textual (ts_rank) fundidas por RRF.
+- [x] **E2.1** Busca híbrida: vetorial (cosine, top-50) + textual (ts_rank) fundidas por RRF.
   - *Aceite:* função `hybrid_search(creator_id, query)` retorna candidatos rankeados; testada com fixtures.
 - [ ] **E2.2** Rerank (Cohere) top-50 → top-5 com limiar de score.
   - *Aceite:* abaixo do limiar retorna vazio → caminho "não tenho isso registrado".

@@ -7,15 +7,11 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E1 — Ingestão & second brain** (4/5 tarefas; E1.5 transcrição é opcional no MVP).
-- **Próxima tarefa:** **E2.1** — Busca híbrida (vetorial + textual + RRF). E1.5 (transcrição) fica de fora do MVP.
-- **Último commit:** `E1.4: BullMQ worker + POST /sources/:id/sync`.
+- **Épico atual:** **E2 — Núcleo RAG** (1/6 tarefas). E1 fechado (E1.5 transcrição é opcional MVP, pulada).
+- **Próxima tarefa:** **E2.2** — Rerank (Cohere) top-50 → top-5 com limiar de score (abaixo → "não tenho isso registrado").
+- **Último commit:** `E2.1: hybridSearch (vetorial + tsvector + RRF)`.
 
-> 📌 **Bloqueio externo (não-código):** projeto OpenAI sem acesso ao
-> `text-embedding-3-small`. Liberar em
-> `platform.openai.com → Project Settings → Limits → Model permissions`
-> e rodar `make ingest-fausto` para reindexar os 5 transcripts já
-> upsertados (chunks vazios; idempotência cuida de não duplicar docs).
+> ✅ **Conteúdo do Fausto indexado**: 5 transcripts → 10 chunks com embeddings OpenAI reais (`text-embedding-3-small`, 1536-d). Smoke `retrieval-smoke fausto "Bolsonaro"` retorna ordem semanticamente sã com legs vetorial + textual fundidas via RRF.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -66,8 +62,8 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E1.4** Worker BullMQ + `POST /api/sources/:id/sync`
 - [ ] E1.5 (opcional MVP) Transcrição
 
-### E2 — Núcleo RAG (pendente)
-- [ ] E2.1 Busca híbrida (vetorial + BM25 + RRF)
+### E2 — Núcleo RAG
+- [x] **E2.1** Busca híbrida (vetorial + tsvector + RRF) — `backend/src/rag/retrieval.ts::hybridSearch`
 - [ ] E2.2 Rerank Cohere
 - [ ] E2.3 Persona Card (modelo + seed Fausto + endpoint)
 - [ ] E2.4 Prompt + caching
