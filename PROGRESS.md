@@ -7,9 +7,21 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E0 — Scaffolding & infra**.
-- **Próxima tarefa:** **E0.3** — Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env obrigatória.
-- **Último commit:** atualizado pelo commit do E0.2.
+- **Épico atual:** **E0 — Scaffolding & infra** (2/4 tarefas concluídas).
+- **Próxima tarefa:** **E0.3** — Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env obrigatória + fakes em modo `test`.
+- **Último commit:** `4c258e1 E0.2: smoke completo + checkbox`.
+- **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
+- **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
+
+## Marco do E0.2 (referência rápida)
+
+Tudo da infra de DB está em pé e testado:
+- Supabase local rodando (`make up`) — API `:54321`, DB `:54322`, Studio `:54323`, Inbucket/Mailpit `:54324`.
+- Postgres 17 com `vector 0.8.2` + `pg_trgm 1.6`.
+- 9 tabelas espelhando `docs/04`. `chunks.embedding = vector(1536)`, HNSW (m=16, ef=64), GIN sobre `tsv`, trigger `chunks_tsv_trigger` populando `tsv` com `to_tsvector('portuguese', ...)`.
+- Bucket `creator-content` no Storage (private, 500 MiB, MIME texto/áudio/vídeo).
+- Migrations: `0000_curly_the_initiative.sql` (gerada Drizzle + extensions no topo) e `0001_tsv_and_storage.sql` (trigger + bucket).
+- Containers extras de outro projeto (`agent-infra-docker-*`) seguem em pé sem conflito.
 
 ## ▶️ Roteiro de retomada padrão
 
@@ -22,7 +34,7 @@
 
 ### E0 — Scaffolding & infra
 - [x] **E0.1** Monorepo pnpm (backend Hono + frontend Next.js + Biome + Vitest + Makefile + healthcheck).
-- [ ] **E0.2** Supabase CLI + Drizzle schema (tabelas/índices do doc 04) + bucket de Storage.
+- [x] **E0.2** Supabase CLI + Drizzle schema (tabelas/índices do doc 04) + bucket de Storage.
 - [ ] **E0.3** Config tipada com Zod (`backend/src/config.ts`) + falha clara se faltar env.
 - [ ] **E0.4** Adapters (llm/embeddings/rerank/transcription + connectors `ManualUpload`) com fakes para testes.
 
@@ -66,7 +78,7 @@
 ## Decisões consolidadas (não revisitar sem motivo forte)
 
 - **Backend:** Node 20 + TypeScript + **Hono** + **Drizzle ORM** + **Zod** + **BullMQ**.
-- **DB + Auth + Storage:** **Supabase** (Postgres 16 + pgvector + Auth + Storage). Dev local via `supabase start`.
+- **DB + Auth + Storage:** **Supabase** (Postgres 17 + pgvector + Auth + Storage). Dev local via `supabase start`.
 - **Frontend:** Next.js 14 (App Router) + Tailwind. Tema dark estilo ChatGPT (doc 11).
 - **Lint/format:** Biome (substitui ESLint + Prettier).
 - **Testes:** Vitest no backend e frontend.
@@ -87,39 +99,39 @@ brew install supabase/tap/supabase
 # Docker Desktop rodando (Redis local + Supabase CLI usam por baixo)
 ```
 
-### Comandos do dia a dia
+### Setup (uma vez, se `.env` não existir)
 ```bash
-# Setup
-pnpm install                    # instala deps de todos os workspaces
-cp .env.example .env            # preencha as chaves de provedor
+pnpm install                  # instala deps de todos os workspaces
+cp .env.example .env          # preencha SUPABASE_*/DATABASE_URL com `supabase status`
+```
+> Hoje o `.env` já existe com as credenciais do Supabase local. Chaves de provedor (Anthropic, OpenAI, Cohere, Deepgram) só precisam ser preenchidas a partir do E2.
 
-# Subir infra local (Redis + Supabase) — Supabase CLI é necessário a partir do E0.2
-make up
+### Dia a dia
+```bash
+# Infra local
+make up                       # Supabase (API:54321 / DB:54322 / Studio:54323) + Redis
+make migrate                  # drizzle-kit migrate (idempotente)
+make down                     # parar tudo
 
-# Desenvolver
-pnpm --filter @second-brain/backend dev    # backend em :3001 (watch)
-pnpm --filter @second-brain/frontend dev   # frontend em :3000 (watch)
-# ou tudo junto:
-make dev
+# Dev (em watch)
+make dev                                            # backend + frontend juntos
+pnpm --filter @second-brain/backend dev             # só backend :3001
+pnpm --filter @second-brain/frontend dev            # só frontend :3000
 
 # Qualidade
-pnpm lint                       # Biome
-pnpm test                       # Vitest (todos os workspaces)
-pnpm typecheck                  # tsc --noEmit nos 2 workspaces
+pnpm lint                     # Biome
+pnpm test                     # Vitest
+pnpm typecheck                # tsc --noEmit nos 2 workspaces
 
-# Healthcheck rápido
+# Sanity
 curl http://localhost:3001/api/health
-# → {"status":"ok","service":"second-brain-backend","timestamp":"..."}
-
-# Parar infra
-make down
+docker exec -i supabase_db_supabase psql -U postgres -d postgres -c "\dt public.*"
 ```
 
-### Comandos previstos (implementados nos próximos épicos)
+### Comandos previstos (próximos épicos)
 ```bash
-make migrate         # E0.2 — drizzle-kit migrate
-make migrate-gen     # E0.2 — gera migration a partir do schema
-make seed            # E0.2/E1 — cria criador 'fausto' + Persona Card + buckets
+make migrate-gen     # gera migration a partir do schema (já funciona)
+make seed            # E1 — cria criador 'fausto' + Persona Card + buckets
 make ingest-fausto   # E1.2 — ManualUploadConnector lê data/fausto/
 make eval            # E4 — harness das golden questions
 ```
