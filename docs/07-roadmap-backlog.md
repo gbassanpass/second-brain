@@ -50,7 +50,7 @@
 - [x] **E3.4** Guardrail anti-alucinação (sem contexto → "não tenho isso registrado") e tom neutro.
 
 ### Épico E4 — Avaliação
-- [ ] **E4.1** `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).
+- [x] **E4.1** `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).
 - [ ] **E4.2** Harness `make eval`: acerto factual, "soa como o criador" (avaliador LLM), taxa de guardrail, custo médio.
   - *Aceite:* relatório com métricas; CI falha em regressão abaixo do baseline (doc 01).
 

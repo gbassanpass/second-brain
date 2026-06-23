@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E3 — Guardrails (BLOQUEANTE)** ✅ 4/4 tarefas — épico fechado, aguarda revisão humana.
-- **Próxima tarefa:** **E4.1** — `eval/golden.yaml` com ~30 perguntas (geopolítica, fé, decisão de vida, investimento→guardrail).
-- **Último commit:** `3711afd E3.4: anti-alucinação (missing-citation post-filter) + tom neutro`.
+- **Épico atual:** **E4 — Avaliação** (1/2 tarefas).
+- **Próxima tarefa:** **E4.2** — Harness `make eval`: acerto factual, "soa como o criador" (avaliador LLM), taxa de guardrail, custo médio.
+- **Último commit:** `6283a1a docs(progress): record E3.4 commit hash`.
 
 > 🟢 **End-to-end RAG real funcionando**: `curl POST /api/chat {creatorSlug:"fausto", query:"O que ele pensa sobre as eleições de 2026?"}` em ~7s retorna resposta no estilo Fausto citando [1] com os dados do conteúdo indexado (3.5M óbitos, 2M novos eleitores, 80% probabilidade). Tudo persistido em `messages`: model `claude-haiku-4-5-20251001`, 917 in / 425 out tokens, **$0.00076** por turno, latência 4.5s, retrievedChunks com chunkId+score+rank.
 
@@ -83,8 +83,8 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 - [x] **E3.3** Filtro pós-geração — `rag/guardrails.ts::detectDirectRecommendation` cobre 4 padrões (imperativo+ativo, imperativo+%, "recomendo X comprar Y", "você deve+verbo financeiro"). No `runAssistantTurn`: se a 1ª resposta viola, regenera 1x com `REINFORCED_RETRY_PREAMBLE` (system+history byte-identical → cache mantém); se 2ª também viola, devolve `buildSafeEducationalReply(personaName)` canned. Usage/cost/latency somados nas 2 chamadas; defense-in-depth: post-filter sobe `messages.guardrail_flag='investment'` mesmo se o pre-classifier deixou passar. API expõe `postFilter:{action:'pass'|'regenerated'|'replaced', category, signals}`.
 - [x] **E3.4** Anti-alucinação + tom neutro — `buildSystemPrompt` ganha linha fixa "Mantenha tom neutro e factual; não tome lado partidário ou militante.". `rag/guardrails.ts::detectMissingCitations` flagra resposta ≥200 chars sem `[N]` quando há chunks. Em turnos não-`investment`, `runAssistantTurn` roda 2º pass: se falta citação, regenera com `CITATION_RETRY_PREAMBLE`; se ainda falta, substitui pela canned "Não tenho isso registrado nos conteúdos de {name}" (idêntica à do no_context, com `fontes:[]`). `PostFilterDecision.category` distingue `recommendation` vs `missing_citation` — só o primeiro escala pra `guardrail_flag='investment'`.
 
-### E4 — Avaliação (pendente)
-- [ ] E4.1 `eval/golden.yaml` (~30 perguntas)
+### E4 — Avaliação
+- [x] **E4.1** `eval/golden.yaml` — 31 perguntas (12 geopolítica c/ fatos-âncora dos transcripts, 5 fé→no_context, 5 decisão de vida→no_context, 7 investimento→guardrail bloqueante, 2 safety→no_context). Schema Zod (`eval/schema.ts`) + loader (`eval/loader.ts` com `yaml`) + teste (`tests/eval-golden.test.ts`) garantindo ID kebab-case único, cobertura mínima por categoria, `guardrail_flag=investment` + must_not_contain "compre/venda/aloque" em todas de investimento, `fallback=no_context` + "não tenho isso registrado" em fé/decisão.
 - [ ] E4.2 Harness `make eval` + CI gate
 
 ### E5 — Auth, paywall, billing (pendente)
