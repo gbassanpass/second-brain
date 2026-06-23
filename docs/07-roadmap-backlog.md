@@ -38,7 +38,7 @@
   - *Aceite:* chamadas reusam o bloco cacheado; custo de entrada cai (verificar nos logs).
 - [x] **E2.5** Orquestrador de resposta: query→retrieval→rerank→LLM→resposta + persistência completa em `messages` (tokens, custo, latência, fontes).
   - *Aceite:* `POST /api/chat` responde citando fontes; `messages` preenchida.
-- [ ] **E2.6** Roteamento de modelo por complexidade (Haiku default, Sonnet fallback).
+- [x] **E2.6** Roteamento de modelo por complexidade (Haiku default, Sonnet fallback).
   - *Aceite:* perguntas simples usam Haiku; logs mostram o roteamento.
 
 ### Épico E3 — Guardrails (BLOQUEANTE para lançar)

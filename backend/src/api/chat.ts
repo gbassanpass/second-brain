@@ -21,7 +21,14 @@ export interface ChatRouterDeps {
   getServices: () => ChatServices;
   getConfig: () => Pick<
     Config,
-    'LLM_DEFAULT_MODEL' | 'MAX_TOKENS_PER_REPLY' | 'RETRIEVAL_TOP_K' | 'RERANK_SCORE_THRESHOLD'
+    | 'LLM_DEFAULT_MODEL'
+    | 'LLM_FALLBACK_MODEL'
+    | 'MAX_TOKENS_PER_REPLY'
+    | 'RETRIEVAL_TOP_K'
+    | 'RERANK_SCORE_THRESHOLD'
+    | 'LLM_ROUTING_FORCE'
+    | 'LLM_ROUTING_LONG_QUERY_CHARS'
+    | 'LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD'
   >;
 }
 
@@ -44,9 +51,13 @@ export function createChatRouter(deps: ChatRouterDeps): Hono {
     const config = deps.getConfig();
     const limits: Partial<ChatLimits> = {
       llmModel: config.LLM_DEFAULT_MODEL,
+      llmFallbackModel: config.LLM_FALLBACK_MODEL,
       maxTokens: config.MAX_TOKENS_PER_REPLY,
       retrievalTopK: config.RETRIEVAL_TOP_K,
       rerankScoreThreshold: config.RERANK_SCORE_THRESHOLD,
+      routingForce: config.LLM_ROUTING_FORCE,
+      routingLongQueryChars: config.LLM_ROUTING_LONG_QUERY_CHARS,
+      routingLowConfidenceThreshold: config.LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD,
     };
 
     try {
@@ -65,6 +76,7 @@ export function createChatRouter(deps: ChatRouterDeps): Hono {
         fallback: result.fallback,
         guardrailFlag: result.guardrailFlag,
         model: result.model,
+        routingReason: result.routingReason,
         usage: result.usage,
         costUsd: result.costUsd,
         latencyMs: result.latencyMs,

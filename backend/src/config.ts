@@ -86,6 +86,11 @@ function buildSchema(isTest: boolean) {
     MAX_TOKENS_PER_REPLY: z.coerce.number().int().positive().default(800),
     RETRIEVAL_TOP_K: z.coerce.number().int().positive().default(5),
     RERANK_SCORE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.2),
+
+    // Routing (Haiku ↔ Sonnet) — see backend/src/rag/routing.ts.
+    LLM_ROUTING_FORCE: z.enum(['default', 'fallback']).optional(),
+    LLM_ROUTING_LONG_QUERY_CHARS: z.coerce.number().int().positive().default(280),
+    LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.3),
   });
 }
 

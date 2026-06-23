@@ -7,6 +7,7 @@ import { estimateCostUsd, toNumericString } from '../rag/cost.js';
 import type { PersonaCard } from '../rag/persona.js';
 import { buildLLMArgs } from '../rag/prompt.js';
 import { retrieveAndRerank } from '../rag/retrieval.js';
+import { type RoutingDecision, type RoutingReason, pickModel } from '../rag/routing.js';
 import type { Reranker } from '../rerank/base.js';
 import { getPersonaCard } from './persona.js';
 
@@ -18,10 +19,17 @@ export interface ChatServices {
 
 export interface ChatLimits {
   llmModel: string;
+  llmFallbackModel: string;
   maxTokens: number;
   retrievalTopK: number;
   rerankScoreThreshold: number;
   historyTurns: number;
+  /** Force the routing decision (ops). Default: heuristics apply. */
+  routingForce?: 'default' | 'fallback';
+  /** Long-query cutoff in chars. Default 280. */
+  routingLongQueryChars?: number;
+  /** Min top rerank score to stay on the cheap model. Default 0.3. */
+  routingLowConfidenceThreshold?: number;
 }
 
 export interface ProcessChatInput {
@@ -50,6 +58,8 @@ export interface ProcessChatResult {
   guardrailFlag: string | null;
   fallback: 'no_context' | null;
   model: string;
+  /** Why this model was picked (default vs fallback) — useful for analytics. */
+  routingReason: RoutingReason;
   usage: LLMUsage | null;
   costUsd: number;
   latencyMs: number;
@@ -57,6 +67,7 @@ export interface ProcessChatResult {
 
 const DEFAULT_LIMITS: ChatLimits = {
   llmModel: 'claude-haiku-4-5',
+  llmFallbackModel: 'claude-sonnet-4-6',
   maxTokens: 800,
   retrievalTopK: 5,
   rerankScoreThreshold: 0.2,
@@ -118,11 +129,27 @@ export async function processChat(
     rerankScoreThreshold: cfg.rerankScoreThreshold,
   });
 
+  const routing = pickModel(
+    { query: input.query, rerankScores: retrieval.hits.map((h) => h.rerankScore) },
+    {
+      defaultModel: cfg.llmModel,
+      fallbackModel: cfg.llmFallbackModel,
+      longQueryChars: cfg.routingLongQueryChars,
+      lowConfidenceThreshold: cfg.routingLowConfidenceThreshold,
+      force: cfg.routingForce,
+    },
+  );
+
+  if (retrieval.fallback !== 'no_context') {
+    logRouting(routing, input.creatorSlug);
+  }
+
   const assistant = await runAssistantTurn({
     persona,
     historyOrdered,
     query: input.query,
     retrieval,
+    routing,
     db,
     llm: services.llm,
     cfg,
@@ -166,10 +193,19 @@ export async function processChat(
     guardrailFlag: null,
     fallback: assistant.fallback,
     model: assistant.model,
+    routingReason: routing.reason,
     usage: assistant.usage,
     costUsd: assistant.costUsd,
     latencyMs: assistant.latencyMs,
   };
+}
+
+function logRouting(decision: RoutingDecision, slug: string) {
+  const s = decision.signals;
+  console.info(
+    `[chat] slug=${slug} model=${decision.model} reason=${decision.reason} ` +
+      `query_chars=${s.queryChars} question_marks=${s.questionMarks} top_score=${s.topRerankScore?.toFixed(3) ?? 'n/a'}`,
+  );
 }
 
 async function ensureConversation(
@@ -226,6 +262,7 @@ interface AssistantTurnArgs {
   historyOrdered: LLMMessage[];
   query: string;
   retrieval: Awaited<ReturnType<typeof retrieveAndRerank>>;
+  routing: RoutingDecision;
   db: Database;
   llm: LLMClient;
   cfg: ChatLimits;
@@ -247,7 +284,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       content: `Não tenho isso registrado nos conteúdos de ${args.persona.name}.`,
       fontes: [],
       fallback: 'no_context',
-      model: args.cfg.llmModel,
+      model: args.routing.model,
       usage: null,
       costUsd: 0,
       latencyMs: 0,
@@ -275,7 +312,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       title: titles.get(h.documentId) ?? undefined,
     })),
     history: args.historyOrdered,
-    model: args.cfg.llmModel,
+    model: args.routing.model,
     maxTokens: args.cfg.maxTokens,
   });
 
@@ -283,13 +320,13 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
   const llmResult = await args.llm.complete(llmArgs);
   const latencyMs = Date.now() - start;
 
-  const costUsd = estimateCostUsd(llmResult.model || args.cfg.llmModel, llmResult.usage);
+  const costUsd = estimateCostUsd(llmResult.model || args.routing.model, llmResult.usage);
 
   return {
     content: llmResult.content,
     fontes,
     fallback: null,
-    model: llmResult.model || args.cfg.llmModel,
+    model: llmResult.model || args.routing.model,
     usage: llmResult.usage,
     costUsd,
     latencyMs,

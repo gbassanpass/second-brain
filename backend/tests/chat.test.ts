@@ -56,20 +56,35 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
   let creatorId = '';
   let chunkIds: string[] = [];
 
-  const buildApp = () =>
+  const buildApp = (overrides: Partial<ReturnType<typeof baseConfig>> = {}) =>
     createApp({
       getDb: () => getDb(DB_URL),
       getChatServices: () => ({ embedder, reranker, llm }),
-      getChatConfig: () => ({
-        LLM_DEFAULT_MODEL: 'claude-haiku-4-5',
-        MAX_TOKENS_PER_REPLY: 200,
-        RETRIEVAL_TOP_K: 3,
-        // Permissive threshold so FakeReranker's Jaccard scores pass on
-        // single-term queries; the no_context path uses a separate app.
-        RERANK_SCORE_THRESHOLD: 0,
-      }),
+      getChatConfig: () => ({ ...baseConfig(), ...overrides }),
       enqueueSync: async () => ({ jobId: 'noop' }),
     });
+
+  const baseConfig = (): {
+    LLM_DEFAULT_MODEL: string;
+    LLM_FALLBACK_MODEL: string;
+    MAX_TOKENS_PER_REPLY: number;
+    RETRIEVAL_TOP_K: number;
+    RERANK_SCORE_THRESHOLD: number;
+    LLM_ROUTING_FORCE: 'default' | 'fallback' | undefined;
+    LLM_ROUTING_LONG_QUERY_CHARS: number;
+    LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD: number;
+  } => ({
+    LLM_DEFAULT_MODEL: 'claude-haiku-4-5',
+    LLM_FALLBACK_MODEL: 'claude-sonnet-4-6',
+    MAX_TOKENS_PER_REPLY: 200,
+    RETRIEVAL_TOP_K: 3,
+    // Permissive threshold so FakeReranker's Jaccard scores pass on
+    // single-term queries; the no_context path uses a separate app.
+    RERANK_SCORE_THRESHOLD: 0,
+    LLM_ROUTING_FORCE: undefined,
+    LLM_ROUTING_LONG_QUERY_CHARS: 280,
+    LLM_ROUTING_LOW_CONFIDENCE_THRESHOLD: 0.3,
+  });
 
   beforeAll(async () => {
     const db = getDb(DB_URL);
@@ -121,7 +136,8 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
 
   it('happy path: returns the LLM answer with fontes and persists both turns', async () => {
     llm = new FakeLLM();
-    const app = buildApp();
+    // Force default model so this test is about persistence, not routing.
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const res = await app.request('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -171,7 +187,7 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
 
   it('continues an existing conversation and passes history to the LLM', async () => {
     llm = new FakeLLM();
-    const app = buildApp();
+    const app = buildApp({ LLM_ROUTING_FORCE: 'default' });
     const first = await app.request('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -199,20 +215,43 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(llm.calls[0]?.system).toBe(llm.calls[1]?.system);
   });
 
+  it('routes to the fallback model for multi-question queries (and logs it)', async () => {
+    llm = new FakeLLM();
+    const app = buildApp();
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        creatorSlug: slug,
+        query: 'O que ele pensa sobre eleições? E sobre o petróleo?',
+      }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      model: string;
+      routingReason: string;
+    };
+    expect(body.routingReason).toBe('multi_question');
+    expect(body.model).toBe('claude-sonnet-4-6');
+    expect(llm.calls[0]?.model).toBe('claude-sonnet-4-6');
+  });
+
+  it('routes to the fallback model for long queries', async () => {
+    llm = new FakeLLM();
+    const app = buildApp();
+    const long = `${'eleições brasileiras com muito contexto e nuance '.repeat(20)}.`;
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ creatorSlug: slug, query: long }),
+    });
+    const body = (await res.json()) as { routingReason: string };
+    expect(body.routingReason).toBe('long_query');
+  });
+
   it('returns the "não tenho isso registrado" fallback when nothing clears the threshold', async () => {
     llm = new FakeLLM();
-    const app = createApp({
-      getDb: () => getDb(DB_URL),
-      getChatServices: () => ({ embedder, reranker, llm }),
-      getChatConfig: () => ({
-        LLM_DEFAULT_MODEL: 'claude-haiku-4-5',
-        MAX_TOKENS_PER_REPLY: 200,
-        RETRIEVAL_TOP_K: 3,
-        // Impossibly high — nothing clears it.
-        RERANK_SCORE_THRESHOLD: 1.01,
-      }),
-      enqueueSync: async () => ({ jobId: 'noop' }),
-    });
+    const app = buildApp({ RERANK_SCORE_THRESHOLD: 1.01 });
     const res = await app.request('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
