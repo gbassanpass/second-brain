@@ -68,3 +68,16 @@ export async function importInstagram(
   if (!res.ok) throw new Error(`instagram import failed: ${res.status}`);
   return (await res.json()) as ImportResult;
 }
+
+/**
+ * Train the clone's voice: auto-generate the Persona Card from imported
+ * content. Best-effort — onboarding swallows failures (the creator can always
+ * generate/edit later in the Studio).
+ */
+export async function generatePersona(slug: string, token: string | null): Promise<boolean> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/persona/generate`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  return res.ok;
+}

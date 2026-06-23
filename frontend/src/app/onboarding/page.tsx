@@ -5,6 +5,7 @@ import {
   type CreatedClone,
   type ImportResult,
   createClone,
+  generatePersona,
   importInstagram,
   parseInstagramHandle,
 } from '../../lib/onboarding';
@@ -21,6 +22,7 @@ export default function OnboardingPage() {
   const [clone, setClone] = useState<CreatedClone | null>(null);
   const [imported, setImported] = useState<ImportResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState('Importando seus posts…');
   const [error, setError] = useState<string | null>(null);
 
   if (status === 'loading') return <Centered>Carregando…</Centered>;
@@ -60,8 +62,12 @@ export default function OnboardingPage() {
     setBusy(true);
     setError(null);
     try {
+      setBusyLabel('Importando seus posts…');
       const result = await importInstagram(clone.slug, handle, accessToken);
       setImported(result);
+      // Train the voice from what we just imported (best-effort).
+      setBusyLabel('Treinando a persona…');
+      await generatePersona(clone.slug, accessToken);
       setStep('done');
     } catch {
       setError('Não consegui importar agora. Tente novamente.');
@@ -111,7 +117,7 @@ export default function OnboardingPage() {
             placeholder="https://www.instagram.com/seuperfil"
           />
           <PrimaryButton onClick={submitInstagram} disabled={busy || !igUrl.trim()}>
-            {busy ? 'Importando seus posts…' : 'Importar e treinar'}
+            {busy ? busyLabel : 'Importar e treinar'}
           </PrimaryButton>
           <button
             type="button"

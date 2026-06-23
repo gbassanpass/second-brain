@@ -5,6 +5,7 @@ import { InstagramConnector } from '../connectors/instagram.js';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
 import type { Embedder } from '../embeddings/base.js';
+import type { LLMClient } from '../llm/base.js';
 import { personaCardSchema } from '../rag/persona.js';
 import { ScraperError } from '../scrapers/base.js';
 import type { InstagramScraper } from '../scrapers/base.js';
@@ -17,6 +18,7 @@ import {
   resolveOwnedCreator,
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
+import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource, syncContentSource } from '../services/source-ingest.js';
 import {
@@ -42,6 +44,10 @@ export interface CreatorsRouterDeps extends RequireAuthDeps {
   getScraper?: () => InstagramScraper;
   /** Default max posts to pull per Instagram import. */
   instagramLimit?: number;
+  /** LLM for auto-generating the Persona Card from content. */
+  getLLM?: () => LLMClient;
+  /** Model used for persona generation. */
+  personaModel?: string;
 }
 
 const instagramBody = z.object({
@@ -230,6 +236,36 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       return c.json({ error: result.error, slug }, 404);
     }
     return c.json({ slug, personaCard: result.card });
+  });
+
+  // Auto-generate the Persona Card from the creator's imported content (F1.x).
+  router.post('/:slug/persona/generate', ...studioGate, async (c) => {
+    if (!deps.getLLM) return c.json({ error: 'persona_gen_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const slug = c.req.param('slug');
+    const [creator] = await getDb()
+      .select({ displayName: creators.displayName, niche: creators.niche })
+      .from(creators)
+      .where(eq(creators.id, owned))
+      .limit(1);
+    if (!creator) return c.json({ error: 'creator_not_found', slug }, 404);
+
+    try {
+      const card = await generatePersonaCard(getDb(), deps.getLLM(), {
+        creatorId: owned,
+        slug,
+        displayName: creator.displayName,
+        niche: creator.niche,
+        model: deps.personaModel ?? 'claude-haiku-4-5',
+      });
+      return c.json({ slug, personaCard: card });
+    } catch (err) {
+      if (err instanceof PersonaGenError) {
+        return c.json({ error: 'persona_gen_failed', message: err.message }, 422);
+      }
+      throw err;
+    }
   });
 
   return router;

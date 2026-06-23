@@ -84,6 +84,8 @@ export function createApp(deps: AppDeps = {}) {
       getEmbedder: () => createEmbedder(getConfig()),
       getScraper: () => createInstagramScraper(getConfig()),
       instagramLimit: getConfig().INSTAGRAM_RESULTS_LIMIT,
+      getLLM: () => createLLMClient(getConfig()),
+      personaModel: getConfig().LLM_DEFAULT_MODEL,
     }),
   );
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
