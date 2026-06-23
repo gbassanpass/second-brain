@@ -81,6 +81,11 @@
 - [ ] **F1.5** Multi-criador real no Studio (cada criador só vê seus dados).
 - [ ] **F1.6** **Interview mode** (doc 10): gerar perguntas direcionadas a partir das lacunas da persona; respostas viram `documents` de alta confiança e atualizam a Persona Card.
 - [ ] **F1.7** Política de uso + aviso "você fala com a mente digital" visível na UI; bloquear categorias proibidas (políticos, conteúdo adulto).
+- [ ] **F1.8** **Enrichment pipeline (Delphi-style)** — antes de embedar, o chunker chama Haiku para gerar (a) um sumário curto do chunk + (b) 3-5 perguntas hipotéticas que aquele chunk responde. Tudo é embedado: o chunk original, o sumário e cada pergunta (mesmo `chunk_id`, novo `chunks.enriched_kind ∈ {raw, summary, question}`). `hybridSearch` retorna o melhor row por `chunk_id` (dedup) — o LLM continua vendo só o `text` raw.
+  - *Por quê:* transcrições de reel têm muito ruído oral; perguntas pré-geradas casam melhor com a query do usuário (similaridade pergunta↔pergunta > pergunta↔fala bruta). É a "Additional Context" do diagrama do case study Pinecone/Delphi.
+  - *Custo:* Haiku ~US$0,0005 por chunk × 10 chunks do Fausto = ~US$0,005 pra reindexar do zero.
+  - *Trigger:* puxar essa task pra antes da F1.5 (KG) se o eval do E4 mostrar passRate < 0.85 em queries indiretas/parafraseadas. KG na F1.5 também ganha um corpus melhor.
+  - *Aceite:* novo enum `enriched_kind` na coluna `chunks`; reindex idempotente; eval rerunado com ganho ≥ 5pp no passRate de geopolítica (ou justifique a regressão).
 
 ## FASE 1.5 — Camada de fidelidade (knowledge graph) — ver doc 10
 - [ ] **F1.5.1** Extração de entidades/relações/princípios por LLM → `kg_entities`/`kg_relations` com `confidence`.
@@ -93,7 +98,7 @@
 - [ ] **F2.1** Cadastro self-service de criador + fluxo de onboarding guiado.
 - [ ] **F2.2** Planos (Free/Criador/Pro/Enterprise) + billing por plano + limites de uso.
 - [ ] **F2.3** Branding/custom domain por criador; múltiplos embeds.
-- [ ] **F2.4** Custos: cache de respostas, roteamento, migração para Qdrant self-host se o volume exigir.
+- [ ] **F2.4** Custos: cache de respostas, roteamento, migração de vector DB se o volume exigir. **Trigger:** > 5M vetores OU > 50 QPS sustentado. Opções a avaliar nessa hora: **Qdrant self-host** (~$50-100/mês num VPS, controle total) vs **Pinecone Serverless** (managed, ~$50-200/mês, mesmo provedor que o Delphi usa). Como temos o `Embedder` em adapter, a troca é trocar 1 implementação — não é rewrite.
 - [ ] **F2.5** Mind Visualization como feature (doc 09).
 
 ---
