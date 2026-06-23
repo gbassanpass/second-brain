@@ -1,0 +1,6 @@
+{
+  "//": "Marks the eval/ harness as ESM. backend/ is type:module but eval/ sits under the root (CJS-default) scope; without this, tsx transpiles these files as CommonJS and the ESM `backend/src/scripts/eval.ts` fails to see their named exports. Not a pnpm workspace package (see pnpm-workspace.yaml).",
+  "name": "@second-brain/eval",
+  "private": true,
+  "type": "module"
+}

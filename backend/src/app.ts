@@ -56,6 +56,8 @@ export interface AppDeps {
   getChatConfig?: ChatRouterDeps['getConfig'];
   /** Override the JWT secret used by `requireAuth`. Defaults to `getConfig().SUPABASE_JWT_SECRET`. */
   jwtSecret?: string;
+  /** Override the JWKS URL for asymmetric tokens. Defaults to `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`. */
+  jwksUrl?: string;
   /** Lazy billing provider — called only by `POST /api/billing/webhook`. */
   getBillingProvider?: () => BillingProvider;
 }
@@ -64,19 +66,24 @@ export function createApp(deps: AppDeps = {}) {
   const app = new Hono();
   const getDb = deps.getDb ?? getDbReal;
   const jwtSecret = deps.jwtSecret ?? getConfig().SUPABASE_JWT_SECRET;
+  // Current Supabase signs access tokens with ES256 (asymmetric); the verifier
+  // fetches the public key from the project's JWKS. HS256 (tests/legacy) still
+  // works via the shared secret.
+  const jwksUrl =
+    deps.jwksUrl ?? `${getConfig().SUPABASE_URL.replace(/\/$/, '')}/auth/v1/.well-known/jwks.json`;
+  const authDeps = { getDb, jwtSecret, jwksUrl };
 
   app.use('*', logger());
 
   app.route('/api/health', health);
-  app.route('/api/creators', createCreatorsRouter({ getDb, jwtSecret }));
+  app.route('/api/creators', createCreatorsRouter(authDeps));
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));
-  app.route('/api/me', createMeRouter({ getDb, jwtSecret }));
-  app.route('/api/c', createAccessRouter({ getDb, jwtSecret }));
+  app.route('/api/me', createMeRouter(authDeps));
+  app.route('/api/c', createAccessRouter(authDeps));
   app.route(
     '/api/billing',
     createBillingRouter({
-      getDb,
-      jwtSecret,
+      ...authDeps,
       getProvider: deps.getBillingProvider ?? defaultGetBillingProvider,
       priceId: getConfig().STRIPE_PRICE_ID,
       publicAppUrl: getConfig().PUBLIC_APP_URL,
@@ -85,8 +92,7 @@ export function createApp(deps: AppDeps = {}) {
   app.route(
     '/api/chat',
     createChatRouter({
-      getDb,
-      jwtSecret,
+      ...authDeps,
       getServices: deps.getChatServices ?? defaultGetChatServices,
       getConfig: deps.getChatConfig ?? defaultGetChatConfig,
     }),

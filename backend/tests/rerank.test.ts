@@ -69,6 +69,50 @@ describe('CohereReranker', () => {
     expect(out[0]?.score).toBeCloseTo(0.9);
     expect(out[0]?.originalIndex).toBe(3);
   });
+
+  it('retries on 429 with backoff, then succeeds', async () => {
+    let calls = 0;
+    const slept: number[] = [];
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      if (calls <= 2) {
+        return new Response('rate limited', { status: 429, headers: { 'retry-after': '1' } });
+      }
+      return new Response(JSON.stringify({ results: [{ index: 0, relevance_score: 0.5 }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    };
+    const r = new CohereReranker({
+      apiKey: 'k',
+      model: 'rerank-v3.5',
+      fetchImpl,
+      sleepImpl: async (ms) => {
+        slept.push(ms);
+      },
+    });
+    const out = await r.rerank('q', docs, 1);
+    expect(calls).toBe(3); // two 429s + one success
+    expect(slept).toEqual([1000, 1000]); // honored Retry-After: 1s
+    expect(out[0]?.id).toBe('a');
+  });
+
+  it('gives up after maxRetries and throws', async () => {
+    let calls = 0;
+    const fetchImpl: typeof fetch = async () => {
+      calls += 1;
+      return new Response('still limited', { status: 429 });
+    };
+    const r = new CohereReranker({
+      apiKey: 'k',
+      model: 'rerank-v3.5',
+      fetchImpl,
+      maxRetries: 2,
+      sleepImpl: async () => undefined,
+    });
+    await expect(r.rerank('q', docs, 1)).rejects.toThrow(/Cohere rerank error 429/);
+    expect(calls).toBe(3); // initial + 2 retries
+  });
 });
 
 describe('createReranker', () => {

@@ -3,23 +3,45 @@
 import { useState } from 'react';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
-type Status = 'idle' | 'sending' | 'sent' | 'error';
+type Status = 'idle' | 'working' | 'sent' | 'error';
+
+const REDIRECT_TO = '/c/fausto/chat';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
 
+  async function signInWithPassword() {
+    const e = email.trim();
+    if (!e || !password) return;
+    setStatus('working');
+    setMessage('');
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.signInWithPassword({
+        email: e,
+        password,
+      });
+      if (error) throw error;
+      // Session is now in localStorage on this origin — go straight to the chat.
+      window.location.href = REDIRECT_TO;
+    } catch (err) {
+      setStatus('error');
+      setMessage(err instanceof Error ? err.message : 'Falha ao entrar.');
+    }
+  }
+
   async function sendMagicLink() {
-    const trimmed = email.trim();
-    if (!trimmed) return;
-    setStatus('sending');
+    const e = email.trim();
+    if (!e) return;
+    setStatus('working');
     setMessage('');
     try {
       const redirectTo =
-        typeof window !== 'undefined' ? `${window.location.origin}/c/fausto/chat` : undefined;
+        typeof window !== 'undefined' ? `${window.location.origin}${REDIRECT_TO}` : undefined;
       const { error } = await getSupabaseBrowserClient().auth.signInWithOtp({
-        email: trimmed,
+        email: e,
         options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
@@ -34,20 +56,19 @@ export default function LoginPage() {
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-6 py-12">
       <div>
         <h1 className="text-2xl font-semibold">Entrar</h1>
-        <p className="mt-2 text-sm text-zinc-400">
-          Enviamos um link mágico para o seu e-mail — sem senha.
-        </p>
+        <p className="mt-2 text-sm text-zinc-400">Use e-mail e senha, ou um link mágico.</p>
       </div>
 
       {status === 'sent' ? (
         <p className="rounded-2xl border border-accent-gold/40 bg-accent-gold/10 px-4 py-3 text-sm text-accent-gold">
-          Link enviado para <strong>{email}</strong>. Abra seu e-mail para continuar.
+          Link enviado para <strong>{email}</strong>. Abra seu e-mail (Mailpit em dev) para
+          continuar.
         </p>
       ) : (
         <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            sendMagicLink();
+          onSubmit={(ev) => {
+            ev.preventDefault();
+            signInWithPassword();
           }}
           className="flex flex-col gap-3"
         >
@@ -55,17 +76,33 @@ export default function LoginPage() {
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(ev) => setEmail(ev.target.value)}
             placeholder="voce@email.com"
             aria-label="E-mail"
             className="rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
           />
+          <input
+            type="password"
+            value={password}
+            onChange={(ev) => setPassword(ev.target.value)}
+            placeholder="senha"
+            aria-label="Senha"
+            className="rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+          />
           <button
             type="submit"
-            disabled={status === 'sending' || email.trim().length === 0}
+            disabled={status === 'working' || email.trim().length === 0 || password.length === 0}
             className="rounded-2xl bg-accent-gold px-4 py-3 text-sm font-semibold text-accent transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {status === 'sending' ? 'Enviando…' : 'Enviar link mágico'}
+            {status === 'working' ? 'Entrando…' : 'Entrar'}
+          </button>
+          <button
+            type="button"
+            onClick={sendMagicLink}
+            disabled={status === 'working' || email.trim().length === 0}
+            className="text-sm text-zinc-400 underline transition hover:text-zinc-200 disabled:opacity-40"
+          >
+            Enviar link mágico
           </button>
           {status === 'error' ? <p className="text-sm text-red-400">{message}</p> : null}
         </form>

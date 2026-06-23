@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Context, MiddlewareHandler } from 'hono';
-import { JwtError, verifySupabaseJWT } from '../../auth/jwt.js';
+import { JwtError, verifySupabaseToken } from '../../auth/jwt.js';
 import type { Database } from '../../db/client.js';
 import { users } from '../../db/schema.js';
 
@@ -28,8 +28,13 @@ export interface AuthVariables {
 export interface RequireAuthDeps {
   /** Lazy DB accessor — only invoked per protected request. */
   getDb: () => Database;
-  /** HS256 secret GoTrue signs tokens with. */
+  /** HS256 secret (legacy/local) GoTrue may sign tokens with. */
   jwtSecret: string;
+  /**
+   * JWKS endpoint for asymmetric tokens (the default for current Supabase —
+   * ES256). e.g. `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`.
+   */
+  jwksUrl?: string;
   /** Clock override for tests. Defaults to `Date.now`. */
   now?: () => number;
 }
@@ -58,7 +63,11 @@ export function requireAuth(deps: RequireAuthDeps): MiddlewareHandler {
 
     let sub: string;
     try {
-      const payload = verifySupabaseJWT(token, deps.jwtSecret, deps.now);
+      const payload = await verifySupabaseToken(token, {
+        secret: deps.jwtSecret,
+        jwksUrl: deps.jwksUrl,
+        now: deps.now,
+      });
       sub = payload.sub;
     } catch (err) {
       if (err instanceof JwtError) {
