@@ -19,7 +19,7 @@
 ### Épico E1 — Ingestão & second brain
 - [x] **E1.1** Schema Drizzle (`backend/src/db/schema.ts`) + tipos Zod para input/output de cada tabela do doc 04 (publicados como `backend/src/db/types.ts`).
   - *Aceite:* `pnpm test` valida que cada tabela tem schema Zod de insert/select; tipos derivados via `drizzle-zod`.
-- [ ] **E1.2** Ingestão manual de conteúdo via `ContentConnector` (`ManualUploadConnector` lê `data/fausto/`) + endpoint `POST /api/creators/{slug}/documents`. Comando `make ingest-fausto` aciona o connector.
+- [x] **E1.2** Ingestão manual de conteúdo via `ContentConnector` (`ManualUploadConnector` lê `data/fausto/`) + endpoint `POST /api/creators/{slug}/documents`. Comando `make ingest-fausto` aciona o connector.
   - *Aceite:* arquivos em `data/fausto/` viram `documents` com `content_hash` (sha256 do `raw_text`); reprocessar não duplica (UNIQUE `creator_id, content_hash`).
 - [ ] **E1.3** Pipeline de chunking (300–500 tokens, overlap 15%) + embeddings (`Embedder` adapter) + `tsvector('portuguese')` populado por trigger.
   - *Aceite:* `chunks` populados com `embedding` e `tsv`; índice HNSW em uso (`EXPLAIN (ANALYZE)` mostra `Index Scan using chunks_embedding_idx`); contagem de chunks bate com fixtures.

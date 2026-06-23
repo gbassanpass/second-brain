@@ -7,9 +7,9 @@
 ## Onde estamos
 
 - **Fase:** 0 — MVP single-tenant para o Fausto.
-- **Épico atual:** **E1 — Ingestão & second brain** (1/5 tarefas).
-- **Próxima tarefa:** **E1.2** — `ManualUploadConnector` → endpoint `POST /api/creators/{slug}/documents` + `make ingest-fausto` (content_hash garante idempotência).
-- **Último commit:** `58c8bd2 E1.1: drizzle-zod schemas + tipos por tabela`.
+- **Épico atual:** **E1 — Ingestão & second brain** (2/5 tarefas).
+- **Próxima tarefa:** **E1.3** — Pipeline de chunking (300–500 tokens, overlap 15%) + embeddings + `tsvector('portuguese')` populado por trigger.
+- **Último commit:** `E1.2: ingest endpoint + make ingest-fausto`.
 - **Branch:** `main` sincronizada com `origin/main` (https://github.com/gbassanpass/second-brain).
 - **Working tree:** limpo. **`.env`** local já tem as chaves do Supabase preenchidas (gitignored).
 
@@ -52,7 +52,7 @@ Camada de provedores pronta (toda em TS, sem SDK de terceiro):
 
 ### E1 — Ingestão & second brain
 - [x] **E1.1** Schema Drizzle + tipos Zod (`backend/src/db/types.ts` via `drizzle-zod`, enums de domínio, schema do `retrieved_chunks`).
-- [ ] **E1.2** `POST /documents` + `make ingest-fausto`
+- [x] **E1.2** `POST /api/creators/:slug/documents` + `make ingest-fausto` (sha256 do raw_text; UNIQUE creator_id+content_hash garante idempotência).
 - [ ] E1.3 Chunking + embeddings + tsvector
 - [ ] E1.4 Worker BullMQ
 - [ ] E1.5 (opcional) Transcrição

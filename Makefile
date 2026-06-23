@@ -57,7 +57,7 @@ eval: ## Roda o harness de avaliação do RAG (golden questions)
 	@echo "[eval] implementado no E4"
 
 ingest-fausto: ## ManualUploadConnector lê data/fausto/ e ingere
-	@echo "[ingest-fausto] implementado no E1.2"
+	pnpm --filter @second-brain/backend ingest-fausto
 
 clean: ## Remove node_modules e build artifacts
 	rm -rf node_modules backend/node_modules frontend/node_modules
