@@ -98,6 +98,7 @@ export function ChatRoom({ view }: { view: LandingView }) {
         role: 'user',
         content: query,
         sources: [],
+        citations: [],
         guardrail: false,
         pending: false,
       };
@@ -106,6 +107,7 @@ export function ChatRoom({ view }: { view: LandingView }) {
         role: 'assistant',
         content: '',
         sources: [],
+        citations: [],
         guardrail: false,
         pending: true,
       };

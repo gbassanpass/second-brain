@@ -49,7 +49,11 @@ function AssistantRow({
       </div>
       <div className="min-w-0 flex-1">
         {message.guardrail ? <GuardrailNotice /> : null}
-        {message.pending ? <ThinkingDots /> : <Markdown>{message.content}</Markdown>}
+        {message.pending ? (
+          <ThinkingDots />
+        ) : (
+          <Markdown citations={message.citations}>{message.content}</Markdown>
+        )}
         {!message.pending && message.content ? (
           <div className="mt-2">
             <SpeakButton slug={slug} text={message.content} token={token} />

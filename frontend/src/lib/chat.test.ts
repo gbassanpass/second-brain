@@ -75,6 +75,28 @@ describe('assistantMessageFromResponse', () => {
     expect(msg.guardrail).toBe(true);
   });
 
+  it('builds per-marker citations indexed by rank+1', () => {
+    const msg = assistantMessageFromResponse(
+      response({
+        fontes: [
+          source({ documentId: 'd1', title: 'Um', rank: 0, url: 'https://x/1' }),
+          source({ documentId: 'd2', title: 'Dois', rank: 1, url: null }),
+        ],
+      }),
+    );
+    expect(msg.citations).toEqual([
+      { index: 1, label: 'de: Um', url: 'https://x/1', documentId: 'd1' },
+      { index: 2, label: 'de: Dois', url: null, documentId: 'd2' },
+    ]);
+  });
+
+  it('drops citations on the no_context refusal', () => {
+    const msg = assistantMessageFromResponse(
+      response({ fallback: 'no_context', fontes: [source()] }),
+    );
+    expect(msg.citations).toEqual([]);
+  });
+
   it('drops sources on the no_context refusal', () => {
     const msg = assistantMessageFromResponse(
       response({

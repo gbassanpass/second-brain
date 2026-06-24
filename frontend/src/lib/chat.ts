@@ -34,6 +34,8 @@ export interface ChatMessage {
   content: string;
   /** Deduped sources to render as chips (assistant only). */
   sources: DisplaySource[];
+  /** Per-marker citations: `[N]` in the text → `citations[index===N]` (assistant). */
+  citations: Citation[];
   /** Show the (non-error) investment guardrail notice above the bubble. */
   guardrail: boolean;
   /** Assistant turn still streaming/awaiting the reply → render the dots. */
@@ -46,6 +48,14 @@ export interface DisplaySource {
   label: string;
   /** Permalink to the original content, when known — renders as a link. */
   url: string | null;
+}
+
+/** A single inline citation, mapped to its `[N]` marker (1-based). */
+export interface Citation {
+  index: number;
+  label: string;
+  url: string | null;
+  documentId: string;
 }
 
 /** Chip label for a retrieved source. */
@@ -78,6 +88,16 @@ export function assistantMessageFromResponse(res: ChatApiResponse): ChatMessage 
     content: res.content,
     // The no_context refusal stands behind no source.
     sources: res.fallback === 'no_context' ? [] : dedupeSources(res.fontes),
+    // `[N]` markers map to fontes by rank (the order they appear in the prompt).
+    citations:
+      res.fallback === 'no_context'
+        ? []
+        : res.fontes.map((f) => ({
+            index: f.rank + 1,
+            label: sourceLabel(f),
+            url: f.url,
+            documentId: f.documentId,
+          })),
     guardrail: res.guardrailFlag === 'investment',
     pending: false,
   };
