@@ -37,7 +37,7 @@ describe.skipIf(!dbReachable)('POST /api/creators/:slug/train (F1.12)', () => {
   let subscriberToken = '';
   const app = createApp({ getDb: () => getDb(DB_URL), jwtSecret: JWT_SECRET });
 
-  async function provision(role: 'operator' | 'subscriber'): Promise<string> {
+  async function provision(role: 'operator' | 'subscriber' | 'creator'): Promise<string> {
     const authId = randomUUID();
     const db = getDb(DB_URL);
     await db.execute(
@@ -92,6 +92,12 @@ describe.skipIf(!dbReachable)('POST /api/creators/:slug/train (F1.12)', () => {
     ).toBe(401);
     expect((await post(subscriberToken, { question: 'q', answer: 'a' })).status).toBe(403);
     expect((await post(operatorToken, { question: '', answer: '' })).status).toBe(400);
+  });
+
+  it('403 for a creator who is NOT the owner (treino é só do dono)', async () => {
+    // A `creator`-role user who doesn't own this clone must not train it.
+    const otherCreatorToken = await provision('creator');
+    expect((await post(otherCreatorToken, { question: 'q', answer: 'a' })).status).toBe(403);
   });
 
   it('persists the correction as an indexed Q&A document', async () => {
