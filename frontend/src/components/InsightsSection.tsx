@@ -118,12 +118,12 @@ function ActivityChart({ points }: { points: DailyPoint[] }) {
         <>
           <div className="mt-4 flex h-36 items-end gap-px">
             {points.map((p) => (
-              <div key={p.date} className="group relative flex flex-1 justify-center">
+              <div key={p.date} className="group relative flex h-full flex-1 flex-col justify-end">
                 <div
-                  className="w-full min-h-[2px] rounded-t bg-accent-gold/60 transition group-hover:bg-accent-gold"
+                  className="min-h-[2px] w-full rounded-t bg-accent-gold/60 transition group-hover:bg-accent-gold"
                   style={{ height: `${(p.messages / max) * 100}%` }}
                 />
-                <span className="pointer-events-none absolute bottom-full z-10 mb-1 hidden whitespace-nowrap rounded-lg border border-zinc-700 bg-black/90 px-2 py-1 text-[10px] text-zinc-200 group-hover:block">
+                <span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-1 hidden -translate-x-1/2 whitespace-nowrap rounded-lg border border-zinc-700 bg-black/90 px-2 py-1 text-[10px] text-zinc-200 group-hover:block">
                   {ddmm(p.date)} · {p.messages} msg · {p.conversations} conv
                 </span>
               </div>
