@@ -100,6 +100,7 @@ export function ChatRoom({ view }: { view: LandingView }) {
         sources: [],
         citations: [],
         guardrail: false,
+        extrapolated: false,
         pending: false,
       };
       const pending: ChatMessage = {
@@ -109,6 +110,7 @@ export function ChatRoom({ view }: { view: LandingView }) {
         sources: [],
         citations: [],
         guardrail: false,
+        extrapolated: false,
         pending: true,
       };
       setMessages((prev) => [...prev, userMsg, pending]);

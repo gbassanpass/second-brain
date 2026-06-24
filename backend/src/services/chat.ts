@@ -14,6 +14,7 @@ import {
 import type { PersonaCard } from '../rag/persona.js';
 import {
   buildCitationRetryArgs,
+  buildExtrapolationArgs,
   buildLLMArgs,
   buildReinforcedRetryArgs,
   buildSafeEducationalReply,
@@ -105,6 +106,8 @@ export interface ProcessChatResult {
   /** Post-generation filter decision (E3.3). */
   postFilter: PostFilterDecision;
   fallback: 'no_context' | null;
+  /** True when the reply was inferred from KG principles, not direct content (F1.5.3). */
+  extrapolated: boolean;
   model: string;
   /** Why this model was picked (default vs fallback) — useful for analytics. */
   routingReason: RoutingReason;
@@ -262,6 +265,7 @@ export async function processChat(
     guardrail,
     postFilter: assistant.postFilter,
     fallback: assistant.fallback,
+    extrapolated: assistant.extrapolated ?? false,
     model: assistant.model,
     routingReason: routing.reason,
     usage: assistant.usage,
@@ -344,6 +348,8 @@ interface AssistantTurnResult {
   content: string;
   fontes: ChatSource[];
   fallback: 'no_context' | null;
+  /** True when the reply was inferred from KG principles (F1.5.3). */
+  extrapolated?: boolean;
   model: string;
   usage: LLMUsage | null;
   costUsd: number;
@@ -351,8 +357,83 @@ interface AssistantTurnResult {
   postFilter: PostFilterDecision;
 }
 
+/**
+ * Extrapolation turn (F1.5.3): answer from the creator's principles when there
+ * is no direct content. No chunks → no citation filter; the CVM recommendation
+ * guardrail still applies (regenerate → safe reply).
+ */
+async function runExtrapolation(
+  args: AssistantTurnArgs,
+  graphFacts: string[],
+): Promise<AssistantTurnResult> {
+  const llmArgs = buildExtrapolationArgs({
+    personaCard: args.persona,
+    query: args.query,
+    graphFacts,
+    history: args.historyOrdered,
+    guardrail: args.guardrail,
+    model: args.routing.model,
+    maxTokens: args.cfg.maxTokens,
+  });
+  const start = Date.now();
+  const first = await args.llm.complete(llmArgs);
+  let latencyMs = Date.now() - start;
+  const modelOf = (r: typeof first) => r.model || args.routing.model;
+
+  const rec = detectDirectRecommendation(first.content);
+  if (!rec.violated) {
+    return {
+      content: first.content,
+      fontes: [],
+      fallback: null,
+      extrapolated: true,
+      model: modelOf(first),
+      usage: first.usage,
+      costUsd: estimateCostUsd(modelOf(first), first.usage),
+      latencyMs,
+      postFilter: { action: 'pass', category: null, signals: [] },
+    };
+  }
+
+  const retryStart = Date.now();
+  const second = await args.llm.complete(buildReinforcedRetryArgs(llmArgs));
+  latencyMs += Date.now() - retryStart;
+  const rec2 = detectDirectRecommendation(second.content);
+  const usage = sumUsage(first.usage, second.usage);
+  const costUsd =
+    estimateCostUsd(modelOf(first), first.usage) + estimateCostUsd(modelOf(second), second.usage);
+  return {
+    content: rec2.violated ? buildSafeEducationalReply(args.persona.name) : second.content,
+    fontes: [],
+    fallback: null,
+    extrapolated: true,
+    model: modelOf(second),
+    usage,
+    costUsd,
+    latencyMs,
+    postFilter: {
+      action: rec2.violated ? 'replaced' : 'regenerated',
+      category: 'recommendation',
+      signals: Array.from(new Set([...rec.matches, ...rec2.matches])),
+    },
+  };
+}
+
 async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
   if (args.retrieval.fallback === 'no_context') {
+    // F1.5.3 — extrapolation: no direct excerpt, but if the graph has relevant
+    // principles, reason from them instead of refusing.
+    if (args.cfg.graphRetrievalEnabled !== false) {
+      const facts = await retrieveSubgraph(args.db, {
+        creatorId: args.creatorId,
+        query: args.query,
+        chunkIds: [],
+        maxFacts: args.cfg.graphMaxFacts ?? 12,
+      });
+      if (facts.length >= 2) {
+        return runExtrapolation(args, formatSubgraph(facts));
+      }
+    }
     return {
       content: `Não tenho isso registrado nos conteúdos de ${args.persona.name}.`,
       fontes: [],

@@ -84,6 +84,7 @@ export function createChatRouter(deps: ChatRouterDeps): Hono<{ Variables: Access
         content: result.content,
         fontes: result.fontes,
         fallback: result.fallback,
+        extrapolated: result.extrapolated,
         guardrailFlag: result.guardrailFlag,
         guardrail: result.guardrail,
         postFilter: result.postFilter,

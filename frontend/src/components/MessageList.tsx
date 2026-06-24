@@ -49,6 +49,7 @@ function AssistantRow({
       </div>
       <div className="min-w-0 flex-1">
         {message.guardrail ? <GuardrailNotice /> : null}
+        {message.extrapolated ? <ExtrapolationNotice /> : null}
         {message.pending ? (
           <ThinkingDots />
         ) : (
@@ -108,6 +109,15 @@ function GuardrailNotice() {
   return (
     <div className="mb-2 rounded-xl border border-accent-gold/40 bg-accent-gold/10 px-3 py-2 text-xs text-accent-gold">
       Conteúdo educativo, sem recomendação de compra ou venda de ativos.
+    </div>
+  );
+}
+
+/** Inference notice (F1.5.3) — the reply was reasoned from principles, not direct content. */
+function ExtrapolationNotice() {
+  return (
+    <div className="mb-2 rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-xs text-zinc-400">
+      💭 Inferência: não falei disso diretamente — esta resposta deriva do meu jeito de pensar.
     </div>
   );
 }

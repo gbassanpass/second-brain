@@ -10,6 +10,8 @@ import {
   conversations,
   creators,
   documents,
+  kgEntities,
+  kgRelations,
   messages,
   subscriptions,
   users,
@@ -166,6 +168,8 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     const db = getDb(DB_URL);
     if (userId) await db.delete(subscriptions).where(eq(subscriptions.userId, userId));
     if (creatorId) {
+      await db.delete(kgRelations).where(eq(kgRelations.creatorId, creatorId));
+      await db.delete(kgEntities).where(eq(kgEntities.creatorId, creatorId));
       await db.delete(messages).where(eq(messages.creatorId, creatorId));
       await db.delete(conversations).where(eq(conversations.creatorId, creatorId));
       await db.delete(documents).where(eq(documents.creatorId, creatorId));
@@ -527,6 +531,47 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
       .limit(1);
     expect(lastAssistant?.content).toContain('Não tenho isso registrado');
     expect(lastAssistant?.retrievedChunks).toBeNull();
+  });
+
+  it('extrapolates from KG principles when no chunk clears the threshold (F1.5.3)', async () => {
+    const db = getDb(DB_URL);
+    const ents = await db
+      .insert(kgEntities)
+      .values([
+        { creatorId, name: 'criptomoedas', kind: 'tema' },
+        { creatorId, name: 'cautela com hype', kind: 'principio' },
+        { creatorId, name: 'Fausto', kind: 'pessoa' },
+      ])
+      .returning({ id: kgEntities.id, name: kgEntities.name });
+    const id = (n: string) => ents.find((e) => e.name === n)?.id ?? '';
+    await db.insert(kgRelations).values([
+      { creatorId, srcId: id('criptomoedas'), dstId: id('cautela com hype'), relation: 'exige' },
+      { creatorId, srcId: id('criptomoedas'), dstId: id('Fausto'), relation: 'analisada_por' },
+    ]);
+
+    llm = new FakeLLM({ reply: () => 'Pelo meu jeito de pensar, criptomoedas pedem cautela.' });
+    const app = buildApp({ RERANK_SCORE_THRESHOLD: 1.01 });
+    const res = await app.request('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ creatorSlug: slug, query: 'o que você acha de criptomoedas?' }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      content: string;
+      fallback: 'no_context' | null;
+      extrapolated: boolean;
+      fontes: unknown[];
+    };
+    expect(body.fallback).toBeNull();
+    expect(body.extrapolated).toBe(true);
+    expect(body.fontes).toEqual([]);
+    expect(body.content).toContain('cautela');
+    expect(llm.calls.length).toBeGreaterThan(0);
+    expect(llm.calls[0]?.messages.at(-1)?.content).toContain('MODO INFERÊNCIA');
+
+    await db.delete(kgRelations).where(eq(kgRelations.creatorId, creatorId));
+    await db.delete(kgEntities).where(eq(kgEntities.creatorId, creatorId));
   });
 
   it('returns 400 / 404 for invalid payloads and unknown creators', async () => {

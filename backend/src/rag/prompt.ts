@@ -253,6 +253,56 @@ export function buildLLMArgs(input: BuildLLMArgsInput): LLMCompleteArgs {
   };
 }
 
+/**
+ * Extrapolation mode (F1.5.3, doc 10 §4). When retrieval finds no direct
+ * excerpt but the knowledge graph has relevant principles, the clone reasons
+ * FROM those principles instead of refusing — clearly flagged as an inference
+ * (not a direct citation), without inventing specific facts, and still under
+ * the CVM guardrail.
+ */
+export function buildExtrapolationArgs(input: {
+  personaCard: PersonaCard;
+  query: string;
+  graphFacts: string[];
+  history?: LLMMessage[];
+  guardrail?: GuardrailDecision;
+  model: string;
+  maxTokens?: number;
+}): LLMCompleteArgs {
+  const system = buildSystemPrompt(input.personaCard);
+  const blocks: string[] = [];
+  if (input.guardrail?.flag === 'investment') {
+    blocks.push(EDUCATIONAL_MODE_PREAMBLE, '');
+  }
+  blocks.push(
+    'MODO INFERÊNCIA — não há trecho registrado que responda isto diretamente.',
+    'Em vez de dizer "não tenho isso registrado", RESPONDA inferindo a partir dos',
+    'seus PRINCÍPIOS abaixo (o seu jeito de pensar). Regras desta resposta:',
+    '- Deixe explícito que é uma leitura/inferência sua (ex.: "não falei disso',
+    '  diretamente, mas pelo meu jeito de pensar..."). Não finja que é fato registrado.',
+    '- NÃO use marcadores [N] (não há trechos a citar).',
+    '- NÃO invente fatos, números, datas, nomes ou estatísticas específicas.',
+    '- Mantenha sua voz e respeite todas as regras acima.',
+    '',
+    'PRINCÍPIOS E CONEXÕES (como você pensa):',
+    ...input.graphFacts,
+    '',
+    '---',
+    `Pergunta: ${input.query.trim()}`,
+  );
+  const messages: LLMMessage[] = [
+    ...(input.history ?? []),
+    { role: 'user', content: blocks.join('\n') },
+  ];
+  return {
+    model: input.model,
+    system,
+    cacheSystemPrompt: true,
+    messages,
+    maxTokens: input.maxTokens ?? 800,
+  };
+}
+
 function bulletList(items: string[]): string {
   return items.map((s) => `- ${s}`).join('\n');
 }

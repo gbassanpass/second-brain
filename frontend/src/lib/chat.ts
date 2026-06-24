@@ -24,6 +24,7 @@ export interface ChatApiResponse {
   content: string;
   fontes: ChatSource[];
   fallback: 'no_context' | null;
+  extrapolated?: boolean;
   guardrailFlag: string | null;
 }
 
@@ -40,6 +41,8 @@ export interface ChatMessage {
   citations: Citation[];
   /** Show the (non-error) investment guardrail notice above the bubble. */
   guardrail: boolean;
+  /** Reply inferred from principles, not direct content (F1.5.3) → show notice. */
+  extrapolated: boolean;
   /** Assistant turn still streaming/awaiting the reply → render the dots. */
   pending: boolean;
 }
@@ -104,6 +107,7 @@ export function assistantMessageFromResponse(res: ChatApiResponse): ChatMessage 
             snippet: f.snippet,
           })),
     guardrail: res.guardrailFlag === 'investment',
+    extrapolated: res.extrapolated === true,
     pending: false,
   };
 }
