@@ -50,6 +50,7 @@ export function MindGraphCanvas({
   height,
   directed,
   onSelect,
+  chrome = true,
 }: {
   nodes: GNode[];
   links: GLink[];
@@ -57,6 +58,8 @@ export function MindGraphCanvas({
   height: number;
   directed: boolean;
   onSelect?: (id: string) => void;
+  /** Show search box + mini-map. Off for the landing teaser. */
+  chrome?: boolean;
 }) {
   const fgRef = useRef<ForceGraphMethods>();
   const glow = useMemo(makeGlowTexture, []);
@@ -154,41 +157,43 @@ export function MindGraphCanvas({
       />
 
       {/* Search */}
-      <div className="absolute left-3 top-3 z-10 w-56">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar nó…"
-          className="w-full rounded-lg border border-zinc-700 bg-black/50 px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 backdrop-blur focus:border-accent-gold focus:outline-none"
-        />
-        {matches.length > 0 ? (
-          <ul className="mt-1 max-h-48 overflow-y-auto rounded-lg border border-zinc-800 bg-black/80 backdrop-blur">
-            {matches.map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const live = nodes.find((n) => n.id === m.id);
-                    if (live) flyTo(live);
-                    onSelect?.(m.id);
-                    setQuery('');
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 transition hover:bg-zinc-800"
-                >
-                  <span
-                    className="inline-block h-2 w-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: m.color }}
-                  />
-                  <span className="truncate">{m.label}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
+      {chrome ? (
+        <div className="absolute left-3 top-3 z-10 w-56">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar nó…"
+            className="w-full rounded-lg border border-zinc-700 bg-black/50 px-3 py-1.5 text-xs text-zinc-100 placeholder:text-zinc-500 backdrop-blur focus:border-accent-gold focus:outline-none"
+          />
+          {matches.length > 0 ? (
+            <ul className="mt-1 max-h-48 overflow-y-auto rounded-lg border border-zinc-800 bg-black/80 backdrop-blur">
+              {matches.map((m) => (
+                <li key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const live = nodes.find((n) => n.id === m.id);
+                      if (live) flyTo(live);
+                      onSelect?.(m.id);
+                      setQuery('');
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-zinc-300 transition hover:bg-zinc-800"
+                  >
+                    <span
+                      className="inline-block h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: m.color }}
+                    />
+                    <span className="truncate">{m.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Mini-map */}
-      {positions.length > 1 ? <MiniMap nodes={positions} onPick={flyTo} /> : null}
+      {chrome && positions.length > 1 ? <MiniMap nodes={positions} onPick={flyTo} /> : null}
     </div>
   );
 }

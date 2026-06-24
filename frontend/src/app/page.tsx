@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { LandingGraph } from '../components/LandingGraph';
+import { Reveal } from '../components/Reveal';
 import { UseCases } from '../components/UseCases';
 import {
   IconAudience,
@@ -23,15 +25,33 @@ export default function HomePage() {
       <NavBar />
       <Hero />
       <TrustBar />
-      <Features />
-      <UseCases />
-      <MindSpotlight />
-      <InsightsSpotlight />
-      <SocialProof />
-      <HowItWorks />
-      <Pricing />
-      <TrustSection />
-      <FinalCta />
+      <Reveal>
+        <Features />
+      </Reveal>
+      <Reveal>
+        <UseCases />
+      </Reveal>
+      <Reveal>
+        <MindSpotlight />
+      </Reveal>
+      <Reveal>
+        <InsightsSpotlight />
+      </Reveal>
+      <Reveal>
+        <SocialProof />
+      </Reveal>
+      <Reveal>
+        <HowItWorks />
+      </Reveal>
+      <Reveal>
+        <Pricing />
+      </Reveal>
+      <Reveal>
+        <TrustSection />
+      </Reveal>
+      <Reveal>
+        <FinalCta />
+      </Reveal>
       <Footer />
     </div>
   );
@@ -101,25 +121,27 @@ function Hero() {
           </p>
         </div>
         <div className="relative">
-          {/* Floating question bubbles — the "live minds" feel */}
-          <div className="pointer-events-none absolute inset-0 hidden md:block">
-            <span className="animate-floaty absolute -left-6 top-4 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur">
+          <div className="relative z-10">
+            <ChatPreview />
+          </div>
+          {/* Floating question bubbles — in front, around the card edges */}
+          <div className="pointer-events-none absolute inset-0 z-20 hidden md:block">
+            <span className="animate-floaty absolute -left-10 -top-5 rounded-2xl border border-zinc-700 bg-bg-sidebar px-3 py-1.5 text-xs text-zinc-300 shadow-xl">
               O que você acha das eleições?
             </span>
             <span
-              className="animate-floaty absolute -right-4 top-24 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur"
+              className="animate-floaty absolute -right-8 top-1/2 rounded-2xl border border-zinc-700 bg-bg-sidebar px-3 py-1.5 text-xs text-zinc-300 shadow-xl"
               style={{ animationDelay: '1.5s' }}
             >
               🔊 me explica em áudio
             </span>
             <span
-              className="animate-floaty absolute -bottom-3 left-8 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur"
+              className="animate-floaty absolute -bottom-6 left-6 rounded-2xl border border-zinc-700 bg-bg-sidebar px-3 py-1.5 text-xs text-zinc-300 shadow-xl"
               style={{ animationDelay: '3s' }}
             >
               como você pensaria sobre isso?
             </span>
           </div>
-          <ChatPreview />
         </div>
       </div>
     </section>
@@ -267,83 +289,9 @@ function MindSpotlight() {
             Ver uma mente ao vivo →
           </a>
         </div>
-        <MindGlyph />
+        <LandingGraph />
       </div>
     </section>
-  );
-}
-
-/** Animated node-cluster glyph — pure SVG/SMIL, no WebGL, no JS. */
-function MindGlyph() {
-  const center = { x: 150, y: 115 };
-  const nodes = [
-    { x: 70, y: 55, r: 4, c: '#6ea8fe', dur: '4s' },
-    { x: 240, y: 65, r: 5, c: '#4ec9b0', dur: '5s' },
-    { x: 55, y: 165, r: 4, c: '#c08bff', dur: '4.5s' },
-    { x: 250, y: 175, r: 6, c: '#ffd56b', dur: '6s' },
-    { x: 150, y: 28, r: 4, c: '#4ec9b0', dur: '3.6s' },
-    { x: 150, y: 205, r: 5, c: '#6ea8fe', dur: '5.4s' },
-    { x: 105, y: 135, r: 3, c: '#9aa0ff', dur: '3.2s' },
-    { x: 205, y: 130, r: 3, c: '#9aa0ff', dur: '4.2s' },
-    { x: 95, y: 80, r: 3, c: '#ffd56b', dur: '5.8s' },
-    { x: 225, y: 110, r: 3, c: '#4ec9b0', dur: '4.8s' },
-  ];
-  return (
-    <div className="relative aspect-[3/2] overflow-hidden rounded-3xl border border-zinc-800 bg-black">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,213,107,0.10),transparent_60%)]" />
-      <svg viewBox="0 0 300 230" className="h-full w-full" aria-label="Mente em grafo animada">
-        <title>Mente em grafo animada</title>
-        {/* slow orbit of the whole cluster */}
-        <g>
-          <animateTransform
-            attributeName="transform"
-            type="rotate"
-            from="0 150 115"
-            to="360 150 115"
-            dur="60s"
-            repeatCount="indefinite"
-          />
-          {nodes.map((n) => (
-            <line
-              key={`l-${n.x}-${n.y}`}
-              x1={center.x}
-              y1={center.y}
-              x2={n.x}
-              y2={n.y}
-              stroke="rgba(255,255,255,0.12)"
-              strokeWidth="0.8"
-            >
-              <animate
-                attributeName="stroke-opacity"
-                values="0.06;0.22;0.06"
-                dur={n.dur}
-                repeatCount="indefinite"
-              />
-            </line>
-          ))}
-          {nodes.map((n) => (
-            <circle key={`n-${n.x}-${n.y}`} cx={n.x} cy={n.y} r={n.r} fill={n.c}>
-              <animate
-                attributeName="r"
-                values={`${n.r};${n.r + 1.5};${n.r}`}
-                dur={n.dur}
-                repeatCount="indefinite"
-              />
-              <animate
-                attributeName="opacity"
-                values="0.55;1;0.55"
-                dur={n.dur}
-                repeatCount="indefinite"
-              />
-            </circle>
-          ))}
-          {/* core node — the "mind" */}
-          <circle cx={center.x} cy={center.y} r="9" fill="#ffd56b">
-            <animate attributeName="r" values="9;11;9" dur="3s" repeatCount="indefinite" />
-          </circle>
-        </g>
-      </svg>
-    </div>
   );
 }
 
