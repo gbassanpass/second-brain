@@ -206,6 +206,53 @@ export const subscriptions = pgTable(
   }),
 );
 
+// Access codes (F1.17): a creator hands out codes so people can talk to the
+// clone without going through Stripe (pilots, beta, gifted access). Redeeming a
+// valid code creates an `access_grants` row that the paywall honors.
+export const accessCodes = pgTable(
+  'access_codes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    /** Shareable code string (stored uppercase, globally unique). */
+    code: text('code').notNull(),
+    /** Optional human label, e.g. "Lançamento Instagram". */
+    label: text('label'),
+    /** Max times this code can be redeemed; NULL = unlimited. */
+    maxRedemptions: integer('max_redemptions'),
+    redemptionCount: integer('redemption_count').notNull().default(0),
+    active: boolean('active').notNull().default(true),
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    codeUq: uniqueIndex('access_codes_code_uq').on(t.code),
+  }),
+);
+
+// One row per (user, creator) once a user redeems a valid code — the grant the
+// paywall checks alongside subscriptions.
+export const accessGrants = pgTable(
+  'access_grants',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id),
+    /** Which code unlocked this grant (NULL if granted another way later). */
+    codeId: uuid('code_id').references(() => accessCodes.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userCreatorUq: uniqueIndex('access_grants_user_creator_uq').on(t.userId, t.creatorId),
+  }),
+);
+
 // =============================================================================
 // Typed re-exports — facilitam imports.
 // =============================================================================
@@ -219,6 +266,8 @@ export const schema = {
   conversations,
   messages,
   subscriptions,
+  accessCodes,
+  accessGrants,
 };
 
 export type Schema = typeof schema;

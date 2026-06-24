@@ -36,6 +36,13 @@
       "when": 1782740600000,
       "tag": "0004_creator_owner",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1782740700000,
+      "tag": "0005_next_darkhawk",
+      "breakpoints": true
     }
   ]
 }

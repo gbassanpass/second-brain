@@ -1,6 +1,6 @@
 import { and, desc, eq } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { subscriptions } from '../db/schema.js';
+import { accessGrants, subscriptions } from '../db/schema.js';
 
 /**
  * Statuses that count as "actively paying" for paywall purposes.
@@ -14,6 +14,7 @@ export type AccessReason =
   | 'operator_role'
   | 'creator_role'
   | 'active_subscription'
+  | 'access_code'
   | 'no_subscription'
   | 'expired_subscription';
 
@@ -37,7 +38,8 @@ export interface CheckAccessInput {
  * Pure access check per docs/06 §Regras de acesso:
  *   1. operator / creator bypass the paywall (any creator in the MVP — once
  *      we go multi-tenant in F2.1 we'll tie users to specific creators).
- *   2. otherwise must have a `subscriptions` row with status in
+ *   2. a redeemed access code (`access_grants` row) grants access (F1.17).
+ *   3. otherwise must have a `subscriptions` row with status in
  *      ACTIVE_STATUSES AND `current_period_end` either NULL or in the future.
  *
  * No HTTP, no Hono — the middleware in `api/middleware/require-access.ts`
@@ -49,6 +51,15 @@ export async function checkAccess(db: Database, input: CheckAccessInput): Promis
   }
   if (input.userRole === 'creator') {
     return { allowed: true, reason: 'creator_role' };
+  }
+
+  const [grant] = await db
+    .select({ id: accessGrants.id })
+    .from(accessGrants)
+    .where(and(eq(accessGrants.userId, input.userId), eq(accessGrants.creatorId, input.creatorId)))
+    .limit(1);
+  if (grant) {
+    return { allowed: true, reason: 'access_code' };
   }
 
   const [sub] = await db

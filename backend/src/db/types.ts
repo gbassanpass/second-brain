@@ -1,6 +1,8 @@
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import {
+  accessCodes,
+  accessGrants,
   consents,
   contentSources,
   conversations,
@@ -215,6 +217,17 @@ export const subscriptionsSelectSchema = createSelectSchema(subscriptions, {
 export type SubscriptionInsert = z.infer<typeof subscriptionsInsertSchema>;
 export type SubscriptionRow = z.infer<typeof subscriptionsSelectSchema>;
 
+// ---- access codes / grants (F1.17) ----
+export const accessCodesInsertSchema = createInsertSchema(accessCodes);
+export const accessCodesSelectSchema = createSelectSchema(accessCodes);
+export type AccessCodeInsert = z.infer<typeof accessCodesInsertSchema>;
+export type AccessCodeRow = z.infer<typeof accessCodesSelectSchema>;
+
+export const accessGrantsInsertSchema = createInsertSchema(accessGrants);
+export const accessGrantsSelectSchema = createSelectSchema(accessGrants);
+export type AccessGrantInsert = z.infer<typeof accessGrantsInsertSchema>;
+export type AccessGrantRow = z.infer<typeof accessGrantsSelectSchema>;
+
 // ============================================================================
 // Catalog — single source of truth for "every table has insert+select schemas".
 // Tests iterate over this so new tables fail loudly if their schemas are missing.
@@ -238,6 +251,8 @@ export const tableSchemas = {
     insert: subscriptionsInsertSchema,
     select: subscriptionsSelectSchema,
   },
+  accessCodes: { insert: accessCodesInsertSchema, select: accessCodesSelectSchema },
+  accessGrants: { insert: accessGrantsInsertSchema, select: accessGrantsSelectSchema },
 } as const;
 
 export type TableName = keyof typeof tableSchemas;

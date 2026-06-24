@@ -6,6 +6,11 @@ import { documentKindSchema } from '../db/types.js';
 import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
 import { personaCardSchema } from '../rag/persona.js';
+import {
+  createAccessCode,
+  listAccessCodes,
+  setAccessCodeActive,
+} from '../services/access-codes.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
 import { getConversationMessages, listConversations } from '../services/conversations.js';
 import {
@@ -58,6 +63,16 @@ const trainBody = z.object({
 const instagramBody = z.object({
   handle: z.string().min(1).max(120),
 });
+
+// Access codes (F1.17): the creator hands these out to let people talk to the
+// clone without paying (pilots, beta, gifted access).
+const createAccessCodeBody = z.object({
+  label: z.string().min(1).max(120).optional(),
+  maxRedemptions: z.coerce.number().int().positive().max(100000).optional(),
+  expiresAt: z.string().datetime({ offset: true }).optional(),
+});
+
+const updateAccessCodeBody = z.object({ active: z.boolean() });
 
 // Add Knowledge (F1.9): manually feed the clone a piece of knowledge. For the
 // MVP we support the two types that work end-to-end without extra
@@ -353,6 +368,49 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       title: parsed.data.title,
     });
     return c.json({ added: true, ...result });
+  });
+
+  // Access codes (F1.17) — owner-only CRUD. The redeem endpoint lives on the
+  // access router (`/api/c/:slug/redeem`) since it must run BEFORE the paywall.
+  router.get('/:slug/access-codes', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json({ codes: await listAccessCodes(getDb(), owned) });
+  });
+
+  router.post('/:slug/access-codes', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = createAccessCodeBody.safeParse(json ?? {});
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+    }
+    const code = await createAccessCode(getDb(), {
+      creatorId: owned,
+      label: parsed.data.label,
+      maxRedemptions: parsed.data.maxRedemptions,
+      expiresAt: parsed.data.expiresAt ? new Date(parsed.data.expiresAt) : undefined,
+    });
+    return c.json({ code }, 201);
+  });
+
+  router.patch('/:slug/access-codes/:id', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = updateAccessCodeBody.safeParse(json);
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+    }
+    const updated = await setAccessCodeActive(
+      getDb(),
+      owned,
+      c.req.param('id'),
+      parsed.data.active,
+    );
+    if (!updated) return c.json({ error: 'access_code_not_found' }, 404);
+    return c.json({ code: updated });
   });
 
   return router;

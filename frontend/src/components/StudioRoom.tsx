@@ -23,6 +23,7 @@ import {
   savePersona,
 } from '../lib/studio';
 import { useSession } from '../lib/useSession';
+import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
 import { TrainRoom } from './TrainRoom';
 
@@ -197,12 +198,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
             />
           )}
 
-          {section === 'audience' && (
-            <Empty>
-              Em breve: gerencie quem fala com seu clone — liberar por e-mail, código de acesso ou
-              link de pagamento.
-            </Empty>
-          )}
+          {section === 'audience' && <AccessCodesSection slug={slug} token={accessToken} />}
 
           {section === 'train' && (
             <TrainRoom slug={slug} displayName={displayName} token={accessToken} />

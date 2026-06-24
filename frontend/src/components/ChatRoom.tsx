@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { REDEEM_MESSAGES, redeemAccessCode } from '../lib/accessCodes';
 import {
   type ChatMessage,
   assistantMessageFromResponse,
@@ -22,6 +23,7 @@ export function ChatRoom({ view }: { view: LandingView }) {
   const { status, accessToken, email, signOut } = useSession();
   const [gate, setGate] = useState<Gate>('loading');
   const [checkoutBusy, setCheckoutBusy] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,16 +43,41 @@ export function ChatRoom({ view }: { view: LandingView }) {
     }
     let active = true;
     setGate('loading');
-    fetchAccess(view.slug, accessToken).then((verdict) => {
+    (async () => {
+      const verdict = await fetchAccess(view.slug, accessToken);
       if (!active) return;
-      if (verdict === 'allowed') setGate('allowed');
-      else if (verdict === 'payment_required') setGate('blocked');
-      else setGate('anon');
-    });
+      if (verdict === 'allowed') return setGate('allowed');
+      if (verdict !== 'payment_required') return setGate('anon');
+
+      // Blocked. If the link carried ?code=, try to redeem it automatically.
+      const urlCode = new URLSearchParams(window.location.search).get('code');
+      if (urlCode) {
+        const outcome = await redeemAccessCode(view.slug, urlCode, accessToken);
+        if (!active) return;
+        if (outcome.ok) return setGate('allowed');
+        setRedeemMsg(REDEEM_MESSAGES[outcome.reason] ?? 'Não consegui validar o código.');
+      }
+      setGate('blocked');
+    })();
     return () => {
       active = false;
     };
   }, [status, accessToken, view.slug]);
+
+  const redeem = useCallback(
+    async (code: string): Promise<void> => {
+      const trimmed = code.trim();
+      if (!trimmed) return;
+      setRedeemMsg(null);
+      const outcome = await redeemAccessCode(view.slug, trimmed, accessToken);
+      if (outcome.ok) {
+        setGate('allowed');
+        return;
+      }
+      setRedeemMsg(REDEEM_MESSAGES[outcome.reason] ?? 'Não consegui validar o código.');
+    },
+    [view.slug, accessToken],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll on every new message/state
   useEffect(() => {
@@ -151,8 +178,10 @@ export function ChatRoom({ view }: { view: LandingView }) {
             view={view}
             isSending={isSending}
             checkoutBusy={checkoutBusy}
+            redeemMsg={redeemMsg}
             onSend={send}
             onSubscribe={subscribe}
+            onRedeem={redeem}
           />
           <p className="mt-2 text-center text-xs text-zinc-500">{view.disclaimer}</p>
         </div>
@@ -166,15 +195,19 @@ function GateArea({
   view,
   isSending,
   checkoutBusy,
+  redeemMsg,
   onSend,
   onSubscribe,
+  onRedeem,
 }: {
   gate: Gate;
   view: LandingView;
   isSending: boolean;
   checkoutBusy: boolean;
+  redeemMsg: string | null;
   onSend: (text: string) => void;
   onSubscribe: () => void;
+  onRedeem: (code: string) => void;
 }) {
   if (gate === 'loading') {
     return <p className="py-3 text-center text-sm text-zinc-500">Verificando acesso…</p>;
@@ -194,7 +227,7 @@ function GateArea({
   }
   if (gate === 'blocked') {
     return (
-      <div className="flex flex-col items-center gap-2 py-3 text-center">
+      <div className="flex flex-col items-center gap-3 py-3 text-center">
         <p className="text-sm text-zinc-300">
           Assine para conversar com a mente digital de {view.displayName}.
         </p>
@@ -206,6 +239,7 @@ function GateArea({
         >
           {checkoutBusy ? 'Abrindo checkout…' : 'Assinar'}
         </button>
+        <RedeemForm redeemMsg={redeemMsg} onRedeem={onRedeem} />
       </div>
     );
   }
@@ -215,6 +249,54 @@ function GateArea({
       placeholder={`Pergunte para ${view.displayName}…`}
       onSend={onSend}
     />
+  );
+}
+
+/** "Tenho um código de acesso" — redeem a code instead of paying (F1.17). */
+function RedeemForm({
+  redeemMsg,
+  onRedeem,
+}: {
+  redeemMsg: string | null;
+  onRedeem: (code: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="text-xs text-zinc-400 underline transition hover:text-accent-gold"
+      >
+        Tenho um código de acesso
+      </button>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="flex gap-2">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onRedeem(code);
+          }}
+          placeholder="CÓDIGO"
+          className="w-36 rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-center font-mono text-sm tracking-widest text-zinc-100 placeholder:text-zinc-600 focus:border-accent-gold focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={() => onRedeem(code)}
+          disabled={!code.trim()}
+          className="rounded-xl border border-zinc-700 px-4 py-2 text-sm text-zinc-200 transition hover:border-accent-gold hover:text-accent-gold disabled:opacity-40"
+        >
+          Liberar
+        </button>
+      </div>
+      {redeemMsg ? <p className="text-xs text-red-400">{redeemMsg}</p> : null}
+    </div>
   );
 }
 
