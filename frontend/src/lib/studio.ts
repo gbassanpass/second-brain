@@ -9,6 +9,8 @@ export interface Me {
   externalId: string;
   email: string | null;
   role: string;
+  /** Slug of the clone this user owns, if any (returning-owner routing). */
+  creatorSlug?: string | null;
 }
 
 export interface PersonaCard {

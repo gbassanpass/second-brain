@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { DEFAULT_AFTER_AUTH, useRedirectTarget, withRedirect } from '../../lib/redirect';
+import { fetchMe } from '../../lib/studio';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
 type Status = 'idle' | 'working' | 'sent' | 'error';
@@ -12,10 +13,11 @@ export default function LoginPage() {
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
 
-  // Return to where the visitor came from (e.g. a shared chat link), or to the
-  // creator onboarding when there's no context. Read after mount to avoid a
-  // hydration mismatch (server has no `window`).
-  const target = useRedirectTarget() ?? DEFAULT_AFTER_AUTH;
+  // Explicit return path (e.g. a shared chat link). Read after mount to avoid a
+  // hydration mismatch (server has no `window`). When absent, we route by role:
+  // an owner goes to their Studio, a new user to onboarding.
+  const explicit = useRedirectTarget();
+  const target = explicit ?? DEFAULT_AFTER_AUTH;
 
   async function signInWithPassword() {
     const e = email.trim();
@@ -23,13 +25,17 @@ export default function LoginPage() {
     setStatus('working');
     setMessage('');
     try {
-      const { error } = await getSupabaseBrowserClient().auth.signInWithPassword({
-        email: e,
-        password,
-      });
+      const supabase = getSupabaseBrowserClient();
+      const { error } = await supabase.auth.signInWithPassword({ email: e, password });
       if (error) throw error;
-      // Session is now in localStorage on this origin — go to the return path.
-      window.location.href = target;
+      // A shared link wins; otherwise send owners to their Studio.
+      if (explicit) {
+        window.location.href = explicit;
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
+      const me = await fetchMe(data.session?.access_token ?? null);
+      window.location.href = me?.creatorSlug ? `/studio/${me.creatorSlug}` : DEFAULT_AFTER_AUTH;
     } catch (err) {
       setStatus('error');
       setMessage(err instanceof Error ? err.message : 'Falha ao entrar.');

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   type CreatedClone,
   type ImportResult,
@@ -8,6 +8,7 @@ import {
   importInstagram,
   parseInstagramHandle,
 } from '../../lib/onboarding';
+import { fetchMe } from '../../lib/studio';
 import { useSession } from '../../lib/useSession';
 
 type Step = 'name' | 'connect' | 'done';
@@ -23,6 +24,23 @@ export default function OnboardingPage() {
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState('Importando seus posts…');
   const [error, setError] = useState<string | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // A returning owner shouldn't see "create a mind" — bounce to their Studio.
+  useEffect(() => {
+    if (status === 'loading' || status === 'anon') return;
+    let active = true;
+    fetchMe(accessToken)
+      .then((me) => {
+        if (!active) return;
+        if (me?.creatorSlug) window.location.href = `/studio/${me.creatorSlug}`;
+        else setChecking(false);
+      })
+      .catch(() => active && setChecking(false));
+    return () => {
+      active = false;
+    };
+  }, [status, accessToken]);
 
   if (status === 'loading') return <Centered>Carregando…</Centered>;
   if (status === 'anon') {
@@ -41,6 +59,7 @@ export default function OnboardingPage() {
       </Centered>
     );
   }
+  if (checking) return <Centered>Carregando…</Centered>;
 
   async function submitName() {
     if (!name.trim() || busy) return;
