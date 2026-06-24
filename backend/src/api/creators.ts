@@ -15,6 +15,7 @@ import { getCreatorAnalytics } from '../services/analytics.js';
 import { getConversationMessages, listConversations } from '../services/conversations.js';
 import {
   createCreator,
+  getDocumentDetail,
   getPublicCreator,
   listDocuments,
   listSources,
@@ -161,6 +162,15 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     if (typeof owned !== 'string') return owned;
     const creatorId = owned;
     return c.json({ documents: await listDocuments(getDb(), creatorId) });
+  });
+
+  // Full content of one document (F1.9 detail view) — owner-only.
+  router.get('/:slug/documents/:id', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const detail = await getDocumentDetail(getDb(), owned, c.req.param('id'));
+    if (!detail) return c.json({ error: 'document_not_found' }, 404);
+    return c.json(detail);
   });
 
   // Studio analytics (E6.5): conversations, cost, top questions, guardrail rate.

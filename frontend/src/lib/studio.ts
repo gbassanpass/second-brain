@@ -207,6 +207,30 @@ export async function fetchDocuments(
   return ((await res.json()) as { documents: DocumentSummary[] }).documents;
 }
 
+export interface DocumentDetail {
+  id: string;
+  title: string | null;
+  kind: string | null;
+  url: string | null;
+  text: string;
+  chunks: string[];
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+export async function fetchDocumentDetail(
+  slug: string,
+  id: string,
+  token: string | null,
+): Promise<DocumentDetail> {
+  const res = await fetch(
+    `/api/creators/${encodeURIComponent(slug)}/documents/${encodeURIComponent(id)}`,
+    { headers: authHeaders(token) },
+  );
+  if (!res.ok) throw new Error(`document detail failed: ${res.status}`);
+  return (await res.json()) as DocumentDetail;
+}
+
 export async function fetchAnalytics(
   slug: string,
   token: string | null,

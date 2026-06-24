@@ -201,3 +201,56 @@ export async function listDocuments(db: Database, creatorId: string): Promise<Do
     createdAt: r.createdAt.toISOString(),
   }));
 }
+
+export interface DocumentDetail {
+  id: string;
+  title: string | null;
+  kind: string | null;
+  url: string | null;
+  text: string;
+  chunks: string[];
+  publishedAt: string | null;
+  createdAt: string;
+}
+
+/**
+ * Full content of one indexed document, scoped to the creator (F1.9 detail
+ * view). Returns null when the id isn't theirs so the API can 404.
+ */
+export async function getDocumentDetail(
+  db: Database,
+  creatorId: string,
+  documentId: string,
+): Promise<DocumentDetail | null> {
+  const [doc] = await db
+    .select({
+      id: documents.id,
+      title: documents.title,
+      kind: documents.kind,
+      url: documents.url,
+      rawText: documents.rawText,
+      publishedAt: documents.publishedAt,
+      createdAt: documents.createdAt,
+    })
+    .from(documents)
+    .where(and(eq(documents.id, documentId), eq(documents.creatorId, creatorId)))
+    .limit(1);
+  if (!doc) return null;
+
+  const chunkRows = await db
+    .select({ text: chunks.text })
+    .from(chunks)
+    .where(eq(chunks.documentId, documentId))
+    .orderBy(chunks.ordinal);
+
+  return {
+    id: doc.id,
+    title: doc.title,
+    kind: doc.kind,
+    url: doc.url,
+    text: doc.rawText,
+    chunks: chunkRows.map((c) => c.text),
+    publishedAt: doc.publishedAt ? doc.publishedAt.toISOString() : null,
+    createdAt: doc.createdAt.toISOString(),
+  };
+}

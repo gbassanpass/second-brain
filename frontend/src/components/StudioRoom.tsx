@@ -5,12 +5,14 @@ import { type KnowledgeInput, addKnowledge } from '../lib/knowledge';
 import { generatePersona, importInstagram, parseInstagramHandle } from '../lib/onboarding';
 import {
   type CreatorAnalytics,
+  type DocumentDetail,
   type DocumentSummary,
   type Me,
   type PersonaForm,
   type SourceSummary,
   canUseStudio,
   fetchAnalytics,
+  fetchDocumentDetail,
   fetchDocuments,
   fetchMe,
   fetchPersonaForm,
@@ -25,12 +27,15 @@ import {
 import { useSession } from '../lib/useSession';
 import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
+import { Markdown } from './Markdown';
 import { MindGraph } from './MindGraph';
 import { MindScoreCard } from './MindScoreCard';
 import { TrainRoom } from './TrainRoom';
 import {
   IconAudience,
+  IconClose,
   IconConversations,
+  IconExternal,
   IconInsights,
   IconKnowledge,
   IconMind,
@@ -335,7 +340,7 @@ function KnowledgeSection({
       </div>
       <AddKnowledge slug={slug} token={token} onAdded={onAdded} />
       <SourcesSection sources={sources} />
-      <DocumentsSection documents={documents} />
+      <DocumentsSection slug={slug} token={token} documents={documents} />
     </div>
   );
 }
@@ -627,7 +632,16 @@ function SourcesSection({ sources }: { sources: SourceSummary[] }) {
   );
 }
 
-function DocumentsSection({ documents }: { documents: DocumentSummary[] }) {
+function DocumentsSection({
+  slug,
+  token,
+  documents,
+}: {
+  slug: string;
+  token: string | null;
+  documents: DocumentSummary[];
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Conteúdo indexado</h2>
@@ -636,17 +650,136 @@ function DocumentsSection({ documents }: { documents: DocumentSummary[] }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {documents.map((d) => (
-            <li
-              key={d.id}
-              className="flex items-center justify-between rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-sm"
-            >
-              <span className="text-zinc-200">{d.title ?? 'Sem título'}</span>
-              <span className="text-xs text-zinc-500">{d.chunkCount} trechos</span>
+            <li key={d.id}>
+              <button
+                type="button"
+                onClick={() => setOpenId(d.id)}
+                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-left text-sm transition hover:border-accent-gold"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  {d.kind ? (
+                    <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                      {d.kind}
+                    </span>
+                  ) : null}
+                  <span className="truncate text-zinc-200">{d.title ?? 'Sem título'}</span>
+                </span>
+                <span className="flex shrink-0 items-center gap-2 text-xs text-zinc-500">
+                  {d.chunkCount} trechos
+                  <span className="text-zinc-600">→</span>
+                </span>
+              </button>
             </li>
           ))}
         </ul>
       )}
+      {openId ? (
+        <DocumentDetailModal
+          slug={slug}
+          token={token}
+          id={openId}
+          onClose={() => setOpenId(null)}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function DocumentDetailModal({
+  slug,
+  token,
+  id,
+  onClose,
+}: {
+  slug: string;
+  token: string | null;
+  id: string;
+  onClose: () => void;
+}) {
+  const [doc, setDoc] = useState<DocumentDetail | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchDocumentDetail(slug, id, token)
+      .then((d) => active && setDoc(d))
+      .catch(() => active && setFailed(true));
+    return () => {
+      active = false;
+    };
+  }, [slug, id, token]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <button
+      type="button"
+      aria-label="Fechar"
+      onClick={onClose}
+      className="fixed inset-0 z-50 flex cursor-default items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+    >
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop propagation only; Esc closes via window listener */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[85vh] w-full max-w-2xl cursor-auto flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-bg-sidebar"
+      >
+        {failed ? (
+          <div className="p-6 text-sm text-red-400">Não consegui carregar o conteúdo.</div>
+        ) : !doc ? (
+          <div className="p-6 text-sm text-zinc-500">Carregando…</div>
+        ) : (
+          <>
+            <div className="flex items-start justify-between gap-3 border-b border-zinc-800 p-5">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  {doc.kind ? (
+                    <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] text-zinc-400">
+                      {doc.kind}
+                    </span>
+                  ) : null}
+                  <h3 className="truncate text-base font-semibold text-zinc-100">
+                    {doc.title ?? 'Sem título'}
+                  </h3>
+                </div>
+                <p className="mt-1 text-xs text-zinc-500">
+                  {doc.chunks.length} trechos indexados
+                  {doc.publishedAt
+                    ? ` · ${new Date(doc.publishedAt).toLocaleDateString('pt-BR')}`
+                    : ''}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {doc.url ? (
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 transition hover:border-accent-gold hover:text-accent-gold"
+                  >
+                    <IconExternal width={13} height={13} /> Original
+                  </a>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-full p-1.5 text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
+                  aria-label="Fechar"
+                >
+                  <IconClose width={16} height={16} />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-y-auto p-5">
+              <Markdown>{doc.text}</Markdown>
+            </div>
+          </>
+        )}
+      </div>
+    </button>
   );
 }
 
