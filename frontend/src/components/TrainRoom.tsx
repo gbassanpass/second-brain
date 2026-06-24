@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { postChat } from '../lib/chat';
 import { RATING_OPTIONS, type TrainRating, submitCorrection } from '../lib/train';
+import { Markdown } from './Markdown';
 
 /**
  * Train flow (F1.12) — owner-only. Ask a question your audience asks, see how
@@ -103,9 +104,9 @@ export function TrainRoom({
         <div className="flex flex-col gap-4 rounded-2xl border border-zinc-800 bg-bg-sidebar p-4">
           <div>
             <p className="text-xs text-zinc-500">Resposta atual do clone</p>
-            <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-100">
-              {answer}
-            </p>
+            <div className="mt-1">
+              <Markdown>{answer}</Markdown>
+            </div>
           </div>
 
           {saved ? (

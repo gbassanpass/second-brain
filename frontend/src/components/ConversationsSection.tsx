@@ -7,6 +7,7 @@ import {
   fetchConversationMessages,
   fetchConversations,
 } from '../lib/studio';
+import { Markdown } from './Markdown';
 
 /** Conversations the audience had with the clone (F1.13) — master/detail. */
 export function ConversationsSection({
@@ -93,7 +94,9 @@ export function ConversationsSection({
                   >
                     {initials}
                   </span>
-                  <p className="whitespace-pre-wrap text-sm text-zinc-200">{m.content}</p>
+                  <div className="min-w-0 flex-1 text-sm">
+                    <Markdown>{m.content}</Markdown>
+                  </div>
                 </div>
               ) : (
                 <div key={`${m.createdAt}-${i}`} className="flex justify-end">

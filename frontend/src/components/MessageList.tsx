@@ -1,6 +1,5 @@
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import type { ChatMessage } from '../lib/chat';
+import { Markdown } from './Markdown';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -34,20 +33,7 @@ function AssistantRow({ message, initials }: { message: ChatMessage; initials: s
       </div>
       <div className="min-w-0 flex-1">
         {message.guardrail ? <GuardrailNotice /> : null}
-        {message.pending ? (
-          <ThinkingDots />
-        ) : (
-          <div
-            className="prose prose-invert max-w-none text-[15px] leading-relaxed text-zinc-100
-              prose-headings:font-semibold prose-headings:text-zinc-100
-              prose-h1:text-xl prose-h2:text-lg prose-h3:text-base
-              prose-strong:text-zinc-100 prose-a:text-accent-gold
-              prose-code:text-accent-gold prose-code:before:content-none prose-code:after:content-none
-              prose-hr:border-zinc-700 prose-li:my-0.5"
-          >
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
-          </div>
-        )}
+        {message.pending ? <ThinkingDots /> : <Markdown>{message.content}</Markdown>}
         {message.sources.length > 0 ? <Sources sources={message.sources} /> : null}
       </div>
     </div>
