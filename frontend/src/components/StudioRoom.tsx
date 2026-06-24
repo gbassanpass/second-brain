@@ -21,6 +21,7 @@ import {
   fetchSources,
   formToPersona,
   personaFormError,
+  resyncSource,
   saveLeniency,
   savePersona,
 } from '../lib/studio';
@@ -409,7 +410,7 @@ function KnowledgeSection({
         {msg ? <p className="mt-2 text-xs text-zinc-400">{msg}</p> : null}
       </div>
       <AddKnowledge slug={slug} token={token} onAdded={onAdded} />
-      <SourcesSection sources={sources} />
+      <SourcesSection slug={slug} token={token} sources={sources} onResynced={onAdded} />
       <DocumentsSection slug={slug} token={token} documents={documents} />
     </div>
   );
@@ -634,23 +635,64 @@ function PersonaEditor({
   );
 }
 
-function SourcesSection({ sources }: { sources: SourceSummary[] }) {
+function SourcesSection({
+  slug,
+  token,
+  sources,
+  onResynced,
+}: {
+  slug: string;
+  token: string | null;
+  sources: SourceSummary[];
+  onResynced: () => void;
+}) {
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function resync(id: string) {
+    setBusyId(id);
+    try {
+      await resyncSource(slug, id, token);
+      onResynced();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-lg font-semibold">Fontes</h2>
       {sources.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Nenhuma fonte conectada ainda — o conteúdo é ingerido via pipeline (MVP).
+          Nenhuma fonte conectada ainda — conecte o Instagram acima.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {sources.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-sm"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3 text-sm"
             >
-              <span className="text-zinc-200">{s.kind}</span>
-              <StatusBadge status={s.status} />
+              <span className="min-w-0">
+                <span className="text-zinc-200">
+                  {s.externalRef ? `${s.kind} · ${s.externalRef}` : s.kind}
+                </span>
+                {s.lastSyncedAt ? (
+                  <span className="ml-2 text-xs text-zinc-500">
+                    atualizado {new Date(s.lastSyncedAt).toLocaleDateString('pt-BR')}
+                  </span>
+                ) : null}
+              </span>
+              <span className="flex shrink-0 items-center gap-2">
+                <StatusBadge status={s.status} />
+                <button
+                  type="button"
+                  onClick={() => resync(s.id)}
+                  disabled={busyId === s.id}
+                  className="rounded-lg border border-zinc-700 px-3 py-1 text-xs text-zinc-300 transition hover:border-accent-gold hover:text-accent-gold disabled:opacity-40"
+                >
+                  {busyId === s.id ? 'Atualizando…' : 'Atualizar'}
+                </button>
+              </span>
             </li>
           ))}
         </ul>

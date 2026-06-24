@@ -275,6 +275,19 @@ export async function savePersona(
   if (!res.ok) throw new Error(`persona save failed: ${res.status}`);
 }
 
+/** Re-pull an existing source (e.g. new Instagram posts). Returns false on error. */
+export async function resyncSource(
+  slug: string,
+  sourceId: string,
+  token: string | null,
+): Promise<boolean> {
+  const res = await fetch(
+    `/api/creators/${encodeURIComponent(slug)}/sources/${encodeURIComponent(sourceId)}/resync`,
+    { method: 'POST', headers: authHeaders(token) },
+  );
+  return res.ok;
+}
+
 export async function fetchSources(slug: string, token: string | null): Promise<SourceSummary[]> {
   const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/sources`, {
     headers: authHeaders(token),

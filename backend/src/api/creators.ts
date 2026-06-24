@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { type Context, Hono } from 'hono';
 import { z } from 'zod';
-import { creators } from '../db/schema.js';
+import { contentSources, creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
 import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
@@ -302,6 +302,26 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       { sourceId: source.id, handle: parsed.data.handle, status: 'pending', jobId },
       202,
     );
+  });
+
+  // Resync an existing source (e.g. pull new Instagram posts) — owner-scoped.
+  router.post('/:slug/sources/:id/resync', ...studioGate, async (c) => {
+    if (!deps.enqueueSync) return c.json({ error: 'ingest_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const db = getDb();
+    const [source] = await db
+      .select({ id: contentSources.id })
+      .from(contentSources)
+      .where(and(eq(contentSources.id, c.req.param('id')), eq(contentSources.creatorId, owned)))
+      .limit(1);
+    if (!source) return c.json({ error: 'source_not_found' }, 404);
+    await db
+      .update(contentSources)
+      .set({ status: 'pending' })
+      .where(eq(contentSources.id, source.id));
+    const { jobId } = await deps.enqueueSync(source.id);
+    return c.json({ sourceId: source.id, status: 'pending', jobId }, 202);
   });
 
   // Persona Card is creator/operator-only — it carries the full prompt
