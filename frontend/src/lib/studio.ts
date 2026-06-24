@@ -279,6 +279,44 @@ export async function fetchMindGraph(slug: string, token: string | null): Promis
   return (await res.json()) as MindGraphData;
 }
 
+export type KgEntityKind = 'pessoa' | 'tema' | 'principio' | 'evento' | 'heuristica';
+
+export interface KnowledgeGraph {
+  entities: { id: string; name: string; kind: string | null }[];
+  relations: { src: string; relation: string; dst: string; confidence: number }[];
+  stats: { entities: number; relations: number };
+}
+
+export async function fetchKnowledgeGraph(
+  slug: string,
+  token: string | null,
+): Promise<KnowledgeGraph> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/kg`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`kg load failed: ${res.status}`);
+  return (await res.json()) as KnowledgeGraph;
+}
+
+export interface BuildKgResult {
+  chunksProcessed: number;
+  chunksFailed: number;
+  entitiesCreated: number;
+  relationsCreated: number;
+}
+
+export async function buildKnowledgeGraph(
+  slug: string,
+  token: string | null,
+): Promise<BuildKgResult> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/kg/build`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`kg build failed: ${res.status}`);
+  return (await res.json()) as BuildKgResult;
+}
+
 export async function fetchConversations(
   slug: string,
   token: string | null,

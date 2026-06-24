@@ -7,6 +7,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -253,6 +254,62 @@ export const accessGrants = pgTable(
   }),
 );
 
+// Knowledge graph (F1.5, doc 10): entities + relations extracted from the
+// creator's content. Captures HOW they reason (principles/heuristics), not just
+// what they said. Confidence = "how likely is it the creator would actually say
+// this". Stays in Postgres for now (doc 04 §extensão); Neo4j only if needed.
+export const kgEntities = pgTable(
+  'kg_entities',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    name: text('name').notNull(),
+    /** pessoa | tema | principio | evento | heuristica. */
+    kind: text('kind'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Dedupe entities per creator so re-extraction is idempotent.
+    creatorNameKindUq: uniqueIndex('kg_entities_creator_name_kind_uq').on(
+      t.creatorId,
+      t.name,
+      t.kind,
+    ),
+  }),
+);
+
+export const kgRelations = pgTable(
+  'kg_relations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    srcId: uuid('src_id')
+      .notNull()
+      .references(() => kgEntities.id),
+    dstId: uuid('dst_id')
+      .notNull()
+      .references(() => kgEntities.id),
+    /** ex.: "acredita_que", "decide_por", "relaciona". */
+    relation: text('relation').notNull(),
+    /** Probability the creator would really say/hold this, in [0,1]. */
+    confidence: real('confidence').notNull().default(0.7),
+    /** Temporal dimension (F1.5.5) — when this held true. */
+    validFrom: timestamp('valid_from', { withTimezone: true }),
+    validTo: timestamp('valid_to', { withTimezone: true }),
+    /** The chunk this relation was extracted from (provenance). */
+    sourceChunk: uuid('source_chunk').references(() => chunks.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    // Dedupe identical triples from the same chunk on re-extraction.
+    tripleUq: uniqueIndex('kg_relations_triple_uq').on(t.srcId, t.dstId, t.relation, t.sourceChunk),
+  }),
+);
+
 // =============================================================================
 // Typed re-exports — facilitam imports.
 // =============================================================================
@@ -268,6 +325,8 @@ export const schema = {
   subscriptions,
   accessCodes,
   accessGrants,
+  kgEntities,
+  kgRelations,
 };
 
 export type Schema = typeof schema;

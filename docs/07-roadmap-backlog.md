@@ -109,7 +109,7 @@
 > **Ordem sugerida:** F1.16 (shell) → F1.12 (train) → F1.13 (conversations) → F1.9 (add knowledge) → F1.3 (voz) → F1.17 (acesso) → F1.14/F1.18.
 
 ## FASE 1.5 — Camada de fidelidade (knowledge graph) — ver doc 10
-- [ ] **F1.5.1** Extração de entidades/relações/princípios por LLM → `kg_entities`/`kg_relations` com `confidence`.
+- [x] **F1.5.1** ✅ Extração de entidades/relações/princípios por LLM → `kg_entities`/`kg_relations` com `confidence` (migration 0006). `kg-extract` (LLM→JSON validado por Zod, captura princípios/heurísticas) + `kg-build` (upsert idempotente: unique índices + `onConflictDoNothing`, `source_chunk` p/ proveniência). Endpoints dono: `POST /:slug/kg/build` (inline, capado 60 chunks) + `GET /:slug/kg`. UI: toggle **Estrutura / Conhecimento** na Mente 3D + botão "Extrair grafo" (entidades coloridas por tipo, princípios em dourado, relações com seta/label). Testes: `kg.test.ts` (parse/validação + persistência + idempotência). **Provado no LLM real:** 5 trechos do Fausto → 43 entidades + 33 relações com princípios reais.
 - [ ] **F1.5.2** Recuperação híbrida++ (vetorial + sub-grafo) na orquestração.
 - [ ] **F1.5.3** Modo de extrapolação a partir de princípios (resposta marcada como inferida, respeitando guardrails).
 - [ ] **F1.5.4** Slider de leniência (quanto o clone pode extrapolar); registrar nível em `messages`.

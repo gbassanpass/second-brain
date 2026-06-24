@@ -21,6 +21,7 @@ import {
   resolveOwnedCreator,
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
+import { buildGraphForCreator, getKnowledgeGraph } from '../services/kg-build.js';
 import { addKnowledge } from '../services/knowledge.js';
 import { getMindGraph } from '../services/mind-graph.js';
 import { getMindScore } from '../services/mind-score.js';
@@ -384,6 +385,33 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     const owned = await ownedCreatorId(c);
     if (typeof owned !== 'string') return owned;
     return c.json(await getMindGraph(getDb(), owned));
+  });
+
+  // Knowledge graph (F1.5.1) — read the extracted entities/relations.
+  router.get('/:slug/kg', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json(await getKnowledgeGraph(getDb(), owned));
+  });
+
+  // Build/extend the knowledge graph by running LLM extraction over the
+  // creator's chunks (F1.5.1). Owner-only; runs inline (capped) and idempotent.
+  router.post('/:slug/kg/build', ...studioGate, async (c) => {
+    if (!deps.getLLM) return c.json({ error: 'kg_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const [creator] = await getDb()
+      .select({ displayName: creators.displayName })
+      .from(creators)
+      .where(eq(creators.id, owned))
+      .limit(1);
+    if (!creator) return c.json({ error: 'creator_not_found' }, 404);
+    const result = await buildGraphForCreator(getDb(), deps.getLLM(), {
+      creatorId: owned,
+      creatorName: creator.displayName,
+      model: deps.personaModel ?? 'claude-haiku-4-5',
+    });
+    return c.json(result);
   });
 
   // Access codes (F1.17) — owner-only CRUD. The redeem endpoint lives on the

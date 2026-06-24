@@ -8,6 +8,8 @@ import {
   conversations,
   creators,
   documents,
+  kgEntities,
+  kgRelations,
   messages,
   subscriptions,
   users,
@@ -228,6 +230,17 @@ export const accessGrantsSelectSchema = createSelectSchema(accessGrants);
 export type AccessGrantInsert = z.infer<typeof accessGrantsInsertSchema>;
 export type AccessGrantRow = z.infer<typeof accessGrantsSelectSchema>;
 
+// ---- knowledge graph (F1.5) ----
+export const kgEntitiesInsertSchema = createInsertSchema(kgEntities);
+export const kgEntitiesSelectSchema = createSelectSchema(kgEntities);
+export type KgEntityInsert = z.infer<typeof kgEntitiesInsertSchema>;
+export type KgEntityRow = z.infer<typeof kgEntitiesSelectSchema>;
+
+export const kgRelationsInsertSchema = createInsertSchema(kgRelations);
+export const kgRelationsSelectSchema = createSelectSchema(kgRelations);
+export type KgRelationInsert = z.infer<typeof kgRelationsInsertSchema>;
+export type KgRelationRow = z.infer<typeof kgRelationsSelectSchema>;
+
 // ============================================================================
 // Catalog — single source of truth for "every table has insert+select schemas".
 // Tests iterate over this so new tables fail loudly if their schemas are missing.
@@ -253,6 +266,8 @@ export const tableSchemas = {
   },
   accessCodes: { insert: accessCodesInsertSchema, select: accessCodesSelectSchema },
   accessGrants: { insert: accessGrantsInsertSchema, select: accessGrantsSelectSchema },
+  kgEntities: { insert: kgEntitiesInsertSchema, select: kgEntitiesSelectSchema },
+  kgRelations: { insert: kgRelationsInsertSchema, select: kgRelationsSelectSchema },
 } as const;
 
 export type TableName = keyof typeof tableSchemas;
