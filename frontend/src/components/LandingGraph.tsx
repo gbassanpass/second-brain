@@ -51,10 +51,7 @@ export function LandingGraph() {
   }, []);
 
   return (
-    <div
-      ref={ref}
-      className="aspect-[3/2] overflow-hidden rounded-3xl border border-zinc-800 bg-black"
-    >
+    <div ref={ref} className="aspect-[3/2] overflow-hidden rounded-xl bg-black">
       <MindGraphCanvas
         nodes={NODES}
         links={LINKS}

@@ -54,6 +54,9 @@ export default function HomePage() {
         <InsightsSpotlight />
       </Reveal>
       <Reveal>
+        <TrainSpotlight />
+      </Reveal>
+      <Reveal>
         <Monetization />
       </Reveal>
       <Reveal>
@@ -119,7 +122,8 @@ function Hero() {
           </h1>
           <p className="mt-5 max-w-md text-lg leading-relaxed text-zinc-300">
             Conecte seu conteúdo e tenha um clone de IA que fala com a sua audiência no seu estilo e
-            na <strong className="text-zinc-100">sua voz</strong> — sempre citando as suas fontes.
+            na <strong className="text-zinc-100">sua voz</strong>, citando suas fontes —{' '}
+            <strong className="text-zinc-100">e gera receita 24/7</strong>.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
@@ -308,7 +312,9 @@ function MindSpotlight() {
             Ver uma mente ao vivo →
           </a>
         </div>
-        <LandingGraph />
+        <BrowserFrame url="falacomigo.ai/studio · Mente 3D">
+          <LandingGraph />
+        </BrowserFrame>
       </div>
     </section>
   );
@@ -638,6 +644,53 @@ function Monetization() {
           </div>
         </div>
       </div>
+    </section>
+  );
+}
+
+function TrainSpotlight() {
+  return (
+    <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2">
+      <div>
+        <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
+          Treinar
+        </span>
+        <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
+          Corrija uma vez, aprende para sempre
+        </h2>
+        <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
+          Pergunte como sua audiência pergunta, veja como o clone responde e ensine a resposta
+          certa. A correção vira conhecimento de alta prioridade — na próxima pergunta parecida, ele
+          usa a sua versão.
+        </p>
+      </div>
+      <BrowserFrame url="falacomigo.ai/studio · Treinar">
+        <div className="flex flex-col gap-3 p-1">
+          <div className="self-end rounded-xl bg-bg-assistant px-3 py-1.5 text-[13px] text-zinc-100">
+            O que você acha de faculdade?
+          </div>
+          <div className="rounded-xl bg-bg-assistant px-3 py-2 text-[13px] leading-relaxed text-zinc-200">
+            Vá só se for aprender de verdade; senão, economiza o dinheiro.
+          </div>
+          <div>
+            <p className="text-[11px] text-zinc-500">Essa resposta soa como você?</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {['Nada', 'Pouco', 'Mais ou menos', 'Quase', 'Exato'].map((r, i) => (
+                <span
+                  key={r}
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] ${
+                    i === 4
+                      ? 'border-accent-gold text-accent-gold'
+                      : 'border-zinc-700 text-zinc-400'
+                  }`}
+                >
+                  {r}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </BrowserFrame>
     </section>
   );
 }
