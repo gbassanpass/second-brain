@@ -44,6 +44,17 @@ export interface TopQuestion {
   count: number;
 }
 
+export interface DailyPoint {
+  date: string;
+  conversations: number;
+  messages: number;
+}
+
+export interface ContentGap {
+  question: string;
+  count: number;
+}
+
 export interface CreatorAnalytics {
   conversations: number;
   totalMessages: number;
@@ -55,6 +66,27 @@ export interface CreatorAnalytics {
   guardrailInvestmentCount: number;
   guardrailRate: number;
   topQuestions: TopQuestion[];
+  dailyActivity: DailyPoint[];
+  contentGaps: ContentGap[];
+  answerRate: number;
+}
+
+export interface ContentIdea {
+  title: string;
+  angle: string;
+  basedOn: 'demanda' | 'lacuna';
+}
+
+export async function fetchContentIdeas(
+  slug: string,
+  token: string | null,
+): Promise<ContentIdea[]> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/content-ideas`, {
+    method: 'POST',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`content ideas failed: ${res.status}`);
+  return ((await res.json()) as { ideas: ContentIdea[] }).ideas;
 }
 
 /** USD with enough precision to show sub-cent per-answer costs. */

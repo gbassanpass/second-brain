@@ -20,9 +20,6 @@ import {
   fetchPersonaForm,
   fetchSources,
   formToPersona,
-  formatLatency,
-  formatPercent,
-  formatUsd,
   personaFormError,
   saveLeniency,
   savePersona,
@@ -30,6 +27,7 @@ import {
 import { useSession } from '../lib/useSession';
 import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
+import { InsightsSection } from './InsightsSection';
 import { Markdown } from './Markdown';
 import { MindGraph } from './MindGraph';
 import { MindScoreCard } from './MindScoreCard';
@@ -200,7 +198,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
             <div className="flex flex-col gap-6">
               <MindScoreCard slug={slug} token={accessToken} />
               {analytics ? (
-                <AnalyticsSection analytics={analytics} />
+                <InsightsSection analytics={analytics} slug={slug} token={accessToken} />
               ) : (
                 <Empty>Sem conversas ainda — os números aparecem quando a audiência usar.</Empty>
               )}
@@ -551,49 +549,6 @@ function Empty({ children }: { children: React.ReactNode }) {
     <div className="rounded-2xl border border-zinc-800 bg-bg-sidebar px-6 py-10 text-center text-sm text-zinc-400">
       {children}
     </div>
-  );
-}
-
-function AnalyticsSection({ analytics }: { analytics: CreatorAnalytics }) {
-  const cards = [
-    { label: 'Conversas', value: String(analytics.conversations) },
-    { label: 'Respostas', value: String(analytics.assistantMessages) },
-    { label: 'Custo total', value: formatUsd(analytics.totalCostUsd) },
-    { label: 'Custo / resposta', value: formatUsd(analytics.avgCostUsdPerAnswer) },
-    { label: 'Latência média', value: formatLatency(analytics.avgLatencyMs) },
-    { label: 'Taxa de guardrail', value: formatPercent(analytics.guardrailRate) },
-  ];
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-semibold">Analytics</h2>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {cards.map((c) => (
-          <div
-            key={c.label}
-            className="rounded-2xl border border-zinc-700 bg-bg-assistant px-4 py-3"
-          >
-            <p className="text-xs text-zinc-500">{c.label}</p>
-            <p className="mt-1 text-lg font-semibold text-zinc-100">{c.value}</p>
-          </div>
-        ))}
-      </div>
-      {analytics.topQuestions.length > 0 ? (
-        <div className="mt-2">
-          <p className="text-sm text-zinc-400">Perguntas mais frequentes</p>
-          <ol className="mt-2 flex flex-col gap-1">
-            {analytics.topQuestions.map((q) => (
-              <li
-                key={q.question}
-                className="flex items-center justify-between rounded-xl bg-bg-assistant px-3 py-2 text-sm text-zinc-200"
-              >
-                <span className="truncate pr-3">{q.question}</span>
-                <span className="shrink-0 text-xs text-zinc-500">{q.count}×</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ) : null}
-    </section>
   );
 }
 

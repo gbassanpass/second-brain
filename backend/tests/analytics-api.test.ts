@@ -156,4 +156,45 @@ describe.skipIf(!dbReachable)('GET /api/creators/:slug/analytics (E6.5)', () => 
     // "eleições?" asked twice → top.
     expect(a.topQuestions[0]).toEqual({ question: 'eleições?', count: 2 });
   });
+
+  it('exposes daily activity (30 pts) and content gaps from refusals', async () => {
+    const db = getDb(DB_URL);
+    const [conv] = await db
+      .insert(conversations)
+      .values({ creatorId })
+      .returning({ id: conversations.id });
+    if (!conv) throw new Error('conv failed');
+    // Distinct timestamps so the user turn precedes the assistant refusal
+    // (real chat inserts them ms apart in separate statements).
+    await db.insert(messages).values([
+      {
+        conversationId: conv.id,
+        creatorId,
+        role: 'user',
+        content: 'qual sua comida favorita?',
+        createdAt: new Date(Date.now() - 2000),
+      },
+      {
+        conversationId: conv.id,
+        creatorId,
+        role: 'assistant',
+        content: 'Não tenho isso registrado nos conteúdos de Fausto.',
+        retrievedChunks: null,
+        createdAt: new Date(Date.now() - 1000),
+      },
+    ]);
+
+    const res = await app.request(`/api/creators/${slug}/analytics`, {
+      headers: { authorization: `Bearer ${operatorToken}` },
+    });
+    const a = (await res.json()) as {
+      dailyActivity: { date: string; messages: number; conversations: number }[];
+      contentGaps: { question: string; count: number }[];
+      answerRate: number;
+    };
+    expect(a.dailyActivity).toHaveLength(30);
+    expect(a.dailyActivity.at(-1)?.messages ?? 0).toBeGreaterThan(0); // today has activity
+    expect(a.contentGaps.some((g) => g.question === 'qual sua comida favorita?')).toBe(true);
+    expect(a.answerRate).toBeLessThan(1); // one refusal lowers the rate
+  });
 });

@@ -13,6 +13,7 @@ import {
   setAccessCodeActive,
 } from '../services/access-codes.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
+import { generateContentIdeas } from '../services/content-ideas.js';
 import { getConversationMessages, listConversations } from '../services/conversations.js';
 import {
   createCreator,
@@ -186,6 +187,19 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     if (typeof owned !== 'string') return owned;
     const creatorId = owned;
     return c.json(await getCreatorAnalytics(getDb(), creatorId));
+  });
+
+  // Content ideas (best-in-class Insights) — owner-only LLM suggestions from
+  // audience demand + content gaps.
+  router.post('/:slug/content-ideas', ...studioGate, async (c) => {
+    if (!deps.getLLM) return c.json({ error: 'ideas_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const ideas = await generateContentIdeas(getDb(), deps.getLLM(), {
+      creatorId: owned,
+      model: deps.personaModel ?? 'claude-haiku-4-5',
+    });
+    return c.json({ ideas });
   });
 
   // Conversas que a audiência teve com o clone (F1.13).
