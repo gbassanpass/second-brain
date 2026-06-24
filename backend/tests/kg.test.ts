@@ -126,4 +126,15 @@ describe.skipIf(!dbReachable)('buildGraphForCreator (F1.5.1) — with DB', () =>
     expect(again.entitiesCreated).toBe(0);
     expect(again.relationsCreated).toBe(0);
   });
+
+  it('captures a dated relation into valid_from → year (F1.5.5)', async () => {
+    const dated = new FakeLLM({
+      reply: () =>
+        '{"entities":[{"name":"Lula","kind":"pessoa"},{"name":"Eleições","kind":"evento"}],"relations":[{"src":"Lula","relation":"venceu","dst":"Eleições","confidence":0.95,"year":2022}]}',
+    });
+    await buildGraphForCreator(db, dated, { creatorId, creatorName: 'KG Test', model: 'fake' });
+    const g = await getKnowledgeGraph(db, creatorId);
+    const rel = g.relations.find((r) => r.relation === 'venceu');
+    expect(rel?.year).toBe(2022);
+  });
 });

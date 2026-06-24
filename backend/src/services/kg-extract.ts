@@ -26,6 +26,8 @@ const extractedSchema = z.object({
         relation: z.string().trim().min(1).max(60),
         dst: z.string().trim().min(1).max(120),
         confidence: z.number().min(0).max(1).catch(0.7),
+        // Temporal dimension (F1.5.5): year when the relation is clearly dated.
+        year: z.number().int().min(1900).max(2100).optional().catch(undefined),
       }),
     )
     .max(60),
@@ -49,9 +51,11 @@ function buildSystemPrompt(): string {
     '- relations: triplas (src, relation, dst) ligando entidades, com "confidence" em [0,1]',
     '  = quão provável é que o criador realmente sustentaria essa relação.',
     '  Use relações como "acredita_que", "decide_por", "relaciona", "critica", "valoriza".',
+    '- year (opcional): se a relação é claramente datada (ex.: "em 2020", "desde 2016"),',
+    '  inclua o ano. Se não houver data clara, omita.',
     'Responda APENAS com JSON válido (sem markdown, sem cercas), no formato EXATO:',
-    '{"entities":[{"name":string,"kind":string}],"relations":[{"src":string,"relation":string,"dst":string,"confidence":number}]}',
-    'src e dst devem referenciar nomes que aparecem em entities. Não invente fatos. Em português.',
+    '{"entities":[{"name":string,"kind":string}],"relations":[{"src":string,"relation":string,"dst":string,"confidence":number,"year":number?}]}',
+    'src e dst devem referenciar nomes que aparecem em entities. Não invente fatos nem datas. Em português.',
     'Se o trecho não tiver nada relevante, retorne {"entities":[],"relations":[]}.',
   ].join('\n');
 }

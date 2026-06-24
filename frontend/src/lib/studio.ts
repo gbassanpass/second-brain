@@ -346,6 +346,7 @@ export interface KnowledgeGraph {
     relation: string;
     dst: string;
     confidence: number;
+    year: number | null;
     source: KgRelationSource | null;
   }[];
   stats: { entities: number; relations: number };

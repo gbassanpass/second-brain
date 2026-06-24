@@ -125,6 +125,8 @@ async function persistChunkGraph(
         relation: r.relation,
         confidence: r.confidence,
         sourceChunk: chunkId,
+        // Temporal dimension (F1.5.5): year → Jan 1 of that year.
+        validFrom: r.year ? new Date(Date.UTC(r.year, 0, 1)) : null,
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -158,6 +160,8 @@ export interface KgRelationView {
   relation: string;
   dst: string;
   confidence: number;
+  /** Year the relation held, when dated (F1.5.5). */
+  year: number | null;
   /** Where this relation was extracted from (provenance). */
   source: KgRelationSource | null;
 }
@@ -187,6 +191,7 @@ export async function getKnowledgeGraph(
       dstId: kgRelations.dstId,
       relation: kgRelations.relation,
       confidence: kgRelations.confidence,
+      validFrom: kgRelations.validFrom,
       chunkText: chunks.text,
       documentId: documents.id,
       title: documents.title,
@@ -203,6 +208,7 @@ export async function getKnowledgeGraph(
     relation: r.relation,
     dst: nameById.get(r.dstId) ?? '?',
     confidence: r.confidence,
+    year: r.validFrom ? r.validFrom.getUTCFullYear() : null,
     source: r.chunkText
       ? {
           documentId: r.documentId,

@@ -8,6 +8,8 @@ export interface SubgraphFact {
   relation: string;
   dst: string;
   confidence: number;
+  /** Year the relation held, when dated (F1.5.5). */
+  year: number | null;
 }
 
 export interface RetrieveSubgraphInput {
@@ -64,6 +66,7 @@ export async function retrieveSubgraph(
       dstId: kgRelations.dstId,
       relation: kgRelations.relation,
       confidence: kgRelations.confidence,
+      validFrom: kgRelations.validFrom,
     })
     .from(kgRelations)
     .where(and(eq(kgRelations.creatorId, input.creatorId), or(...conds)))
@@ -89,7 +92,13 @@ export async function retrieveSubgraph(
     const key = `${src}|${r.relation}|${dst}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    facts.push({ src, relation: r.relation, dst, confidence: r.confidence });
+    facts.push({
+      src,
+      relation: r.relation,
+      dst,
+      confidence: r.confidence,
+      year: r.validFrom ? r.validFrom.getUTCFullYear() : null,
+    });
     if (facts.length >= maxFacts) break;
   }
   return facts;
@@ -97,5 +106,7 @@ export async function retrieveSubgraph(
 
 /** Render facts as a readable "how you think" block for the prompt. */
 export function formatSubgraph(facts: SubgraphFact[]): string[] {
-  return facts.map((f) => `- ${f.src} ${f.relation.replace(/_/g, ' ')} ${f.dst}`);
+  return facts.map(
+    (f) => `- ${f.src} ${f.relation.replace(/_/g, ' ')} ${f.dst}${f.year ? ` (${f.year})` : ''}`,
+  );
 }

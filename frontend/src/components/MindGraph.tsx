@@ -59,7 +59,11 @@ function kgToGraph(g: KnowledgeGraph): { nodes: GNode[]; links: GLink[] } {
   const known = new Set(nodes.map((n) => n.id));
   const links = g.relations
     .filter((r) => known.has(r.src) && known.has(r.dst))
-    .map((r) => ({ source: r.src, target: r.dst, label: r.relation }));
+    .map((r) => ({
+      source: r.src,
+      target: r.dst,
+      label: `${r.relation}${r.year ? ` (${r.year})` : ''}`,
+    }));
   return { nodes, links };
 }
 
@@ -358,7 +362,7 @@ function buildDetail(
   const relations = (kg?.relations ?? [])
     .filter((r) => r.src === id || r.dst === id)
     .map((r) => ({
-      text: `${r.src} ${r.relation.replace(/_/g, ' ')} ${r.dst}`,
+      text: `${r.src} ${r.relation.replace(/_/g, ' ')} ${r.dst}${r.year ? ` (${r.year})` : ''}`,
       confidence: r.confidence,
       source: r.source,
     }));
