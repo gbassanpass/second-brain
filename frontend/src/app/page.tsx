@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { UseCases } from '../components/UseCases';
 import {
   IconAudience,
   IconConversations,
@@ -23,6 +24,7 @@ export default function HomePage() {
       <Hero />
       <TrustBar />
       <Features />
+      <UseCases />
       <MindSpotlight />
       <InsightsSpotlight />
       <SocialProof />
@@ -73,8 +75,8 @@ function Hero() {
           <span className="inline-flex items-center gap-2 rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
             <span className="h-1.5 w-1.5 rounded-full bg-accent-gold" /> Para criadores brasileiros
           </span>
-          <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-tight md:text-6xl">
-            A sua <span className="text-accent-gold">mente digital</span>, conversando 24/7
+          <h1 className="mt-5 font-display text-5xl font-medium leading-[1.02] tracking-tight md:text-6xl">
+            Crie a versão de você que <span className="italic text-accent-gold">não para</span>
           </h1>
           <p className="mt-5 max-w-md text-lg leading-relaxed text-zinc-300">
             Conecte seu conteúdo e tenha um clone de IA que fala com a sua audiência no seu estilo e
@@ -98,7 +100,27 @@ function Hero() {
             Sem fine-tuning. Sem código. Comece colando a URL do seu Instagram.
           </p>
         </div>
-        <ChatPreview />
+        <div className="relative">
+          {/* Floating question bubbles — the "live minds" feel */}
+          <div className="pointer-events-none absolute inset-0 hidden md:block">
+            <span className="animate-floaty absolute -left-6 top-4 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur">
+              O que você acha das eleições?
+            </span>
+            <span
+              className="animate-floaty absolute -right-4 top-24 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur"
+              style={{ animationDelay: '1.5s' }}
+            >
+              🔊 me explica em áudio
+            </span>
+            <span
+              className="animate-floaty absolute -bottom-3 left-8 rounded-2xl border border-zinc-700 bg-bg-sidebar/90 px-3 py-1.5 text-xs text-zinc-300 shadow-lg backdrop-blur"
+              style={{ animationDelay: '3s' }}
+            >
+              como você pensaria sobre isso?
+            </span>
+          </div>
+          <ChatPreview />
+        </div>
       </div>
     </section>
   );
@@ -197,7 +219,7 @@ function Features() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-6 py-20">
-      <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+      <h2 className="font-display text-2xl font-medium tracking-tight md:text-3xl">
         Tudo que a sua mente digital faz
       </h2>
       <p className="mt-2 max-w-xl text-sm text-zinc-400">
@@ -230,7 +252,7 @@ function MindSpotlight() {
           <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
             Knowledge graph
           </span>
-          <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+          <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
             Não copiamos só o que você diz. Modelamos como você pensa.
           </h2>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
@@ -353,7 +375,7 @@ function InsightsSpotlight() {
         <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
           Insights
         </span>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+        <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
           Descubra o que postar a seguir
         </h2>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
@@ -387,7 +409,7 @@ function HowItWorks() {
   return (
     <section className="border-zinc-800/70 border-y bg-bg-sidebar/40">
       <div className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="text-center text-2xl font-semibold md:text-3xl">Como funciona</h2>
+        <h2 className="text-center font-display text-2xl font-medium md:text-3xl">Como funciona</h2>
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           {steps.map((s) => (
             <div key={s.n} className="rounded-2xl border border-zinc-800 bg-bg p-6">
@@ -436,7 +458,7 @@ function SocialProof() {
         <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
           Quem já está no ar
         </span>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+        <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
           Mentes digitais que conversam de verdade
         </h2>
         <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -512,7 +534,7 @@ function Pricing() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-6 py-20">
-      <h2 className="text-center text-2xl font-semibold tracking-tight md:text-3xl">
+      <h2 className="text-center font-display text-2xl font-medium tracking-tight md:text-3xl">
         Planos para cada fase
       </h2>
       <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-400">
@@ -583,7 +605,7 @@ function TrustSection() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-6 py-20">
-      <h2 className="text-2xl font-semibold md:text-3xl">Confiança em primeiro lugar</h2>
+      <h2 className="font-display text-2xl font-medium md:text-3xl">Confiança em primeiro lugar</h2>
       <div className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2">
         {items.map((f) => (
           <div key={f.title} className="bg-bg p-6">
@@ -603,7 +625,7 @@ function FinalCta() {
         <div className="absolute bottom-0 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full bg-accent-gold/10 blur-3xl" />
       </div>
       <div className="mx-auto max-w-3xl px-6 py-24 text-center">
-        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+        <h2 className="font-display text-3xl font-medium tracking-tight md:text-4xl">
           Sua audiência, atendida no seu estilo — 24/7
         </h2>
         <p className="mt-4 text-zinc-400">Crie a sua mente digital em minutos.</p>
