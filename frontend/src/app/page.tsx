@@ -25,7 +25,9 @@ export default function HomePage() {
       <Features />
       <MindSpotlight />
       <InsightsSpotlight />
+      <SocialProof />
       <HowItWorks />
+      <Pricing />
       <TrustSection />
       <FinalCta />
       <Footer />
@@ -249,38 +251,75 @@ function MindSpotlight() {
   );
 }
 
-/** Decorative node-cluster glyph (no WebGL — pure SVG). */
+/** Animated node-cluster glyph — pure SVG/SMIL, no WebGL, no JS. */
 function MindGlyph() {
+  const center = { x: 150, y: 115 };
   const nodes = [
-    { x: 150, y: 110, r: 9, c: '#ffd56b' },
-    { x: 70, y: 60, r: 4, c: '#6ea8fe' },
-    { x: 240, y: 70, r: 5, c: '#4ec9b0' },
-    { x: 60, y: 160, r: 4, c: '#c08bff' },
-    { x: 250, y: 170, r: 6, c: '#ffd56b' },
-    { x: 150, y: 30, r: 4, c: '#4ec9b0' },
-    { x: 150, y: 200, r: 5, c: '#6ea8fe' },
-    { x: 110, y: 130, r: 3, c: '#9aa0ff' },
-    { x: 200, y: 130, r: 3, c: '#9aa0ff' },
+    { x: 70, y: 55, r: 4, c: '#6ea8fe', dur: '4s' },
+    { x: 240, y: 65, r: 5, c: '#4ec9b0', dur: '5s' },
+    { x: 55, y: 165, r: 4, c: '#c08bff', dur: '4.5s' },
+    { x: 250, y: 175, r: 6, c: '#ffd56b', dur: '6s' },
+    { x: 150, y: 28, r: 4, c: '#4ec9b0', dur: '3.6s' },
+    { x: 150, y: 205, r: 5, c: '#6ea8fe', dur: '5.4s' },
+    { x: 105, y: 135, r: 3, c: '#9aa0ff', dur: '3.2s' },
+    { x: 205, y: 130, r: 3, c: '#9aa0ff', dur: '4.2s' },
+    { x: 95, y: 80, r: 3, c: '#ffd56b', dur: '5.8s' },
+    { x: 225, y: 110, r: 3, c: '#4ec9b0', dur: '4.8s' },
   ];
-  const center = nodes[0];
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-black p-2">
-      <svg viewBox="0 0 300 230" className="h-full w-full" aria-label="Mente em grafo">
-        <title>Mente em grafo</title>
-        {nodes.slice(1).map((n) => (
-          <line
-            key={`l-${n.x}-${n.y}`}
-            x1={center?.x}
-            y1={center?.y}
-            x2={n.x}
-            y2={n.y}
-            stroke="rgba(255,255,255,0.12)"
-            strokeWidth="0.8"
+    <div className="relative aspect-[3/2] overflow-hidden rounded-3xl border border-zinc-800 bg-black">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,213,107,0.10),transparent_60%)]" />
+      <svg viewBox="0 0 300 230" className="h-full w-full" aria-label="Mente em grafo animada">
+        <title>Mente em grafo animada</title>
+        {/* slow orbit of the whole cluster */}
+        <g>
+          <animateTransform
+            attributeName="transform"
+            type="rotate"
+            from="0 150 115"
+            to="360 150 115"
+            dur="60s"
+            repeatCount="indefinite"
           />
-        ))}
-        {nodes.map((n) => (
-          <circle key={`n-${n.x}-${n.y}`} cx={n.x} cy={n.y} r={n.r} fill={n.c} opacity={0.9} />
-        ))}
+          {nodes.map((n) => (
+            <line
+              key={`l-${n.x}-${n.y}`}
+              x1={center.x}
+              y1={center.y}
+              x2={n.x}
+              y2={n.y}
+              stroke="rgba(255,255,255,0.12)"
+              strokeWidth="0.8"
+            >
+              <animate
+                attributeName="stroke-opacity"
+                values="0.06;0.22;0.06"
+                dur={n.dur}
+                repeatCount="indefinite"
+              />
+            </line>
+          ))}
+          {nodes.map((n) => (
+            <circle key={`n-${n.x}-${n.y}`} cx={n.x} cy={n.y} r={n.r} fill={n.c}>
+              <animate
+                attributeName="r"
+                values={`${n.r};${n.r + 1.5};${n.r}`}
+                dur={n.dur}
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.55;1;0.55"
+                dur={n.dur}
+                repeatCount="indefinite"
+              />
+            </circle>
+          ))}
+          {/* core node — the "mind" */}
+          <circle cx={center.x} cy={center.y} r="9" fill="#ffd56b">
+            <animate attributeName="r" values="9;11;9" dur="3s" repeatCount="indefinite" />
+          </circle>
+        </g>
       </svg>
     </div>
   );
@@ -360,6 +399,164 @@ function HowItWorks() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+function SocialProof() {
+  // NOTE: depoimentos ilustrativos — trocar por reais quando houver.
+  const quotes = [
+    {
+      quote:
+        'Minha audiência conversa comigo a qualquer hora, no meu tom — e eu vejo exatamente o que eles querem saber.',
+      name: 'Fausto Bassan',
+      role: 'Geopolítica e atualidade',
+      initials: 'FB',
+      pilot: true,
+    },
+    {
+      quote:
+        'As "pautas sugeridas" viraram minha fila de conteúdo. Paro de adivinhar o próximo vídeo.',
+      name: 'Criadora de finanças',
+      role: 'Piloto',
+      initials: 'C',
+    },
+    {
+      quote:
+        'Subir um clone que cita minhas fontes e não inventa nada mudou a confiança da galera.',
+      name: 'Criador de educação',
+      role: 'Piloto',
+      initials: 'E',
+    },
+  ];
+  return (
+    <section className="border-zinc-800/70 border-y bg-bg-sidebar/40">
+      <div className="mx-auto max-w-6xl px-6 py-20">
+        <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
+          Quem já está no ar
+        </span>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+          Mentes digitais que conversam de verdade
+        </h2>
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          {quotes.map((q) => (
+            <figure
+              key={q.name}
+              className={`flex flex-col rounded-2xl border p-6 ${
+                q.pilot ? 'border-accent-gold/40 bg-accent-gold/5' : 'border-zinc-800 bg-bg'
+              }`}
+            >
+              <blockquote className="flex-1 text-sm leading-relaxed text-zinc-200">
+                “{q.quote}”
+              </blockquote>
+              <figcaption className="mt-4 flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-gold text-xs font-semibold text-accent">
+                  {q.initials}
+                </span>
+                <span>
+                  <span className="block text-sm font-medium text-zinc-100">{q.name}</span>
+                  <span className="block text-xs text-zinc-500">{q.role}</span>
+                </span>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Pricing() {
+  // NOTE: preços ilustrativos da Fase 2 — confirmar antes de publicar.
+  const tiers = [
+    {
+      name: 'Grátis',
+      price: 'R$ 0',
+      cadence: '',
+      cta: 'Começar grátis',
+      highlight: false,
+      features: [
+        '1 mente digital',
+        'Chat que cita as fontes',
+        'Até 100 mensagens/mês',
+        'Studio com Insights básicos',
+      ],
+    },
+    {
+      name: 'Criador',
+      price: 'R$ 49',
+      cadence: '/mês',
+      cta: 'Assinar Criador',
+      highlight: true,
+      features: [
+        'Conversas ilimitadas',
+        'Resposta falada (voz)',
+        'Insights + pautas com roteiro',
+        'Códigos de acesso e audiência',
+      ],
+    },
+    {
+      name: 'Pro',
+      price: 'R$ 149',
+      cadence: '/mês',
+      cta: 'Assinar Pro',
+      highlight: false,
+      features: [
+        'Tudo do Criador',
+        'Voz clonada (PVC)',
+        'Mente 3D + knowledge graph',
+        'Prioridade de modelo + branding',
+      ],
+    },
+  ];
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-20">
+      <h2 className="text-center text-2xl font-semibold tracking-tight md:text-3xl">
+        Planos para cada fase
+      </h2>
+      <p className="mx-auto mt-2 max-w-xl text-center text-sm text-zinc-400">
+        Comece de graça e evolua quando sua audiência crescer.
+      </p>
+      <div className="mt-12 grid gap-4 md:grid-cols-3">
+        {tiers.map((t) => (
+          <div
+            key={t.name}
+            className={`relative flex flex-col rounded-3xl border p-6 ${
+              t.highlight
+                ? 'border-accent-gold bg-accent-gold/5 shadow-2xl md:-translate-y-2'
+                : 'border-zinc-800 bg-bg-sidebar'
+            }`}
+          >
+            {t.highlight ? (
+              <span className="-top-3 absolute left-6 rounded-full bg-accent-gold px-3 py-0.5 text-[11px] font-semibold text-accent">
+                Mais popular
+              </span>
+            ) : null}
+            <p className="text-sm font-medium text-zinc-300">{t.name}</p>
+            <p className="mt-2">
+              <span className="text-3xl font-semibold text-zinc-100">{t.price}</span>
+              <span className="text-sm text-zinc-500">{t.cadence}</span>
+            </p>
+            <ul className="mt-5 flex flex-1 flex-col gap-2 text-sm text-zinc-300">
+              {t.features.map((f) => (
+                <li key={f} className="flex items-start gap-2">
+                  <span className="mt-0.5 text-accent-gold">✓</span> {f}
+                </li>
+              ))}
+            </ul>
+            <a
+              href="/signup"
+              className={`mt-6 rounded-2xl px-5 py-3 text-center text-sm font-semibold transition ${
+                t.highlight
+                  ? 'bg-accent-gold text-accent hover:opacity-90'
+                  : 'border border-zinc-700 text-zinc-100 hover:border-accent-gold'
+              }`}
+            >
+              {t.cta}
+            </a>
+          </div>
+        ))}
       </div>
     </section>
   );
