@@ -12,6 +12,8 @@ export interface ChatSource {
   ordinal: number;
   title: string | null;
   url: string | null;
+  /** Short excerpt of the cited chunk (F1.5.2). */
+  snippet?: string;
   score: number;
   rank: number;
 }
@@ -56,6 +58,8 @@ export interface Citation {
   label: string;
   url: string | null;
   documentId: string;
+  /** Excerpt of the cited content, shown in the popover. */
+  snippet?: string;
 }
 
 /** Chip label for a retrieved source. */
@@ -97,6 +101,7 @@ export function assistantMessageFromResponse(res: ChatApiResponse): ChatMessage 
             label: sourceLabel(f),
             url: f.url,
             documentId: f.documentId,
+            snippet: f.snippet,
           })),
     guardrail: res.guardrailFlag === 'investment',
     pending: false,

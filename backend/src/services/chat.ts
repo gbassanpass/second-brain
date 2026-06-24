@@ -64,6 +64,8 @@ export interface ChatSource {
   title: string | null;
   /** Permalink to the original content (e.g. the Instagram post), when known. */
   url: string | null;
+  /** Short excerpt of the cited chunk for the citation popover (F1.5.2). */
+  snippet: string;
   score: number;
   rank: number;
 }
@@ -373,6 +375,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
     ordinal: h.ordinal,
     title: meta.get(h.documentId)?.title ?? null,
     url: meta.get(h.documentId)?.url ?? null,
+    snippet: h.text.replace(/\s+/g, ' ').trim().slice(0, 280),
     score: h.rerankScore,
     rank: i,
   }));

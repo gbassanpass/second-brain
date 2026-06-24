@@ -83,6 +83,11 @@ function CitationPill({ index, citation }: { index: number; citation: Citation }
             Fonte {index}
           </span>
           <span className="mt-1 block text-xs text-zinc-200">{citation.label}</span>
+          {citation.snippet ? (
+            <span className="mt-1.5 block border-l-2 border-zinc-700 pl-2 text-[11px] italic leading-snug text-zinc-400">
+              “{citation.snippet}”
+            </span>
+          ) : null}
           {citation.url ? (
             <a
               href={citation.url}
