@@ -61,6 +61,7 @@ describe('creators', () => {
       ownerUserId: null,
       personaCard: null,
       voiceId: null,
+      leniency: 'balanced',
       status: 'active',
       createdAt: new Date(),
     });

@@ -574,6 +574,52 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     await db.delete(kgEntities).where(eq(kgEntities.creatorId, creatorId));
   });
 
+  it('leniency gates extrapolation: strict refuses, open infers with 1 fact (F1.5.4)', async () => {
+    const db = getDb(DB_URL);
+    const ents = await db
+      .insert(kgEntities)
+      .values([
+        { creatorId, name: 'criptomoedas', kind: 'tema' },
+        { creatorId, name: 'cautela com hype', kind: 'principio' },
+      ])
+      .returning({ id: kgEntities.id, name: kgEntities.name });
+    const id = (n: string) => ents.find((e) => e.name === n)?.id ?? '';
+    // Single relation → only `open` (min 1) extrapolates; `balanced` needs 2.
+    await db
+      .insert(kgRelations)
+      .values([
+        { creatorId, srcId: id('criptomoedas'), dstId: id('cautela com hype'), relation: 'exige' },
+      ]);
+
+    const ask = async () => {
+      const res = await buildApp({ RERANK_SCORE_THRESHOLD: 1.01 }).request('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ creatorSlug: slug, query: 'o que você acha de criptomoedas?' }),
+      });
+      return (await res.json()) as { fallback: string | null; extrapolated: boolean };
+    };
+
+    // strict → never extrapolate, refuse.
+    await db.update(creators).set({ leniency: 'strict' }).where(eq(creators.id, creatorId));
+    llm = new FakeLLM({ reply: () => 'inferência' });
+    const strict = await ask();
+    expect(strict.fallback).toBe('no_context');
+    expect(strict.extrapolated).toBe(false);
+    expect(llm.calls).toHaveLength(0);
+
+    // open → 1 fact is enough.
+    await db.update(creators).set({ leniency: 'open' }).where(eq(creators.id, creatorId));
+    llm = new FakeLLM({ reply: () => 'Pelo meu jeito de pensar, exige cautela.' });
+    const open = await ask();
+    expect(open.fallback).toBeNull();
+    expect(open.extrapolated).toBe(true);
+
+    await db.update(creators).set({ leniency: 'balanced' }).where(eq(creators.id, creatorId));
+    await db.delete(kgRelations).where(eq(kgRelations.creatorId, creatorId));
+    await db.delete(kgEntities).where(eq(kgEntities.creatorId, creatorId));
+  });
+
   it('returns 400 / 404 for invalid payloads and unknown creators', async () => {
     llm = new FakeLLM();
     const app = buildApp();

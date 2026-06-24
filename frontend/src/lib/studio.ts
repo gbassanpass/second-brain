@@ -165,6 +165,29 @@ export async function fetchMe(token: string | null): Promise<Me | null> {
 }
 
 /** Returns the persona form (empty when the creator has no card yet). */
+export type Leniency = 'strict' | 'balanced' | 'open';
+
+export async function fetchLeniency(slug: string, token: string | null): Promise<Leniency> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/leniency`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`leniency load failed: ${res.status}`);
+  return ((await res.json()) as { leniency: Leniency }).leniency;
+}
+
+export async function saveLeniency(
+  slug: string,
+  leniency: Leniency,
+  token: string | null,
+): Promise<void> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/leniency`, {
+    method: 'PUT',
+    headers: authHeaders(token),
+    body: JSON.stringify({ leniency }),
+  });
+  if (!res.ok) throw new Error(`leniency save failed: ${res.status}`);
+}
+
 export async function fetchPersonaForm(slug: string, token: string | null): Promise<PersonaForm> {
   const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/persona`, {
     headers: authHeaders(token),

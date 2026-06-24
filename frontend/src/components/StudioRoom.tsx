@@ -7,6 +7,7 @@ import {
   type CreatorAnalytics,
   type DocumentDetail,
   type DocumentSummary,
+  type Leniency,
   type Me,
   type PersonaForm,
   type SourceSummary,
@@ -14,6 +15,7 @@ import {
   fetchAnalytics,
   fetchDocumentDetail,
   fetchDocuments,
+  fetchLeniency,
   fetchMe,
   fetchPersonaForm,
   fetchSources,
@@ -22,6 +24,7 @@ import {
   formatPercent,
   formatUsd,
   personaFormError,
+  saveLeniency,
   savePersona,
 } from '../lib/studio';
 import { useSession } from '../lib/useSession';
@@ -277,7 +280,76 @@ function ProfileSection({
         </button>
       </div>
       {genMsg ? <p className="text-xs text-accent-gold">{genMsg}</p> : null}
+      <LeniencySetting slug={slug} token={token} />
       <PersonaEditor slug={slug} token={token} form={form} onChange={onChange} />
+    </div>
+  );
+}
+
+const LENIENCY_OPTIONS: { id: Leniency; label: string; hint: string }[] = [
+  { id: 'strict', label: 'Conservador', hint: 'Só responde o que está registrado' },
+  { id: 'balanced', label: 'Equilibrado', hint: 'Infere dos princípios quando há base forte' },
+  { id: 'open', label: 'Livre', hint: 'Extrapola mais dos princípios' },
+];
+
+/** Leniency control (F1.5.4): how far the clone may extrapolate. */
+function LeniencySetting({ slug, token }: { slug: string; token: string | null }) {
+  const [level, setLevel] = useState<Leniency | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetchLeniency(slug, token)
+      .then((l) => active && setLevel(l))
+      .catch(() => active && setLevel('balanced'));
+    return () => {
+      active = false;
+    };
+  }, [slug, token]);
+
+  async function pick(l: Leniency) {
+    if (l === level) return;
+    const prev = level;
+    setLevel(l);
+    setSaving(true);
+    try {
+      await saveLeniency(slug, l, token);
+    } catch {
+      setLevel(prev);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-700 bg-bg-assistant p-4">
+      <p className="text-sm font-medium">Liberdade de inferência</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        Quando não há trecho direto, quanto o clone pode responder derivando dos princípios (grafo
+        de conhecimento).
+      </p>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {LENIENCY_OPTIONS.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            disabled={saving}
+            onClick={() => pick(o.id)}
+            className={`rounded-xl border px-3 py-2 text-left transition disabled:opacity-60 ${
+              level === o.id
+                ? 'border-accent-gold bg-accent-gold/10'
+                : 'border-zinc-700 hover:border-zinc-500'
+            }`}
+          >
+            <span
+              className={`block text-xs font-semibold ${level === o.id ? 'text-accent-gold' : 'text-zinc-200'}`}
+            >
+              {o.label}
+            </span>
+            <span className="mt-0.5 block text-[10px] leading-snug text-zinc-500">{o.hint}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -23,6 +23,7 @@ import { retrieveAndRerank } from '../rag/retrieval.js';
 import { type RoutingDecision, type RoutingReason, pickModel } from '../rag/routing.js';
 import type { Reranker } from '../rerank/base.js';
 import { formatSubgraph, retrieveSubgraph } from './kg-retrieve.js';
+import { type Leniency, getLeniency, minFactsToExtrapolate } from './leniency.js';
 import { getPersonaCard } from './persona.js';
 
 export interface ChatServices {
@@ -207,9 +208,11 @@ export async function processChat(
     logRouting(routing, input.creatorSlug);
   }
 
+  const leniency = await getLeniency(db, input.creatorId);
   const assistant = await runAssistantTurn({
     persona,
     creatorId: input.creatorId,
+    leniency,
     historyOrdered,
     query: input.query,
     retrieval,
@@ -248,6 +251,7 @@ export async function processChat(
             }))
           : null,
       guardrailFlag: effectiveGuardrailFlag,
+      leniency,
     })
     .returning({ id: messages.id });
   const assistantMessageId = assistantInsert[0]?.id;
@@ -334,6 +338,7 @@ async function loadHistory(
 interface AssistantTurnArgs {
   persona: PersonaCard;
   creatorId: string;
+  leniency: Leniency;
   historyOrdered: LLMMessage[];
   query: string;
   retrieval: Awaited<ReturnType<typeof retrieveAndRerank>>;
@@ -421,16 +426,18 @@ async function runExtrapolation(
 
 async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
   if (args.retrieval.fallback === 'no_context') {
-    // F1.5.3 — extrapolation: no direct excerpt, but if the graph has relevant
-    // principles, reason from them instead of refusing.
-    if (args.cfg.graphRetrievalEnabled !== false) {
+    // F1.5.3/F1.5.4 — extrapolation: no direct excerpt, but if the graph has
+    // enough principles (per the creator's leniency), reason from them instead
+    // of refusing. `strict` never extrapolates.
+    const minFacts = minFactsToExtrapolate(args.leniency);
+    if (args.cfg.graphRetrievalEnabled !== false && minFacts !== null) {
       const facts = await retrieveSubgraph(args.db, {
         creatorId: args.creatorId,
         query: args.query,
         chunkIds: [],
         maxFacts: args.cfg.graphMaxFacts ?? 12,
       });
-      if (facts.length >= 2) {
+      if (facts.length >= minFacts) {
         return runExtrapolation(args, formatSubgraph(facts));
       }
     }

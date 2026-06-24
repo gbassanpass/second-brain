@@ -38,6 +38,9 @@ export const creators = pgTable('creators', {
   // Persona Card (ver docs/05-rag-and-guardrails.md §Persona Card).
   personaCard: jsonb('persona_card'),
   voiceId: text('voice_id'),
+  // Leniency (F1.5.4): how far the clone may extrapolate beyond explicit
+  // content — 'strict' (nunca) | 'balanced' (default) | 'open' (mais livre).
+  leniency: text('leniency').notNull().default('balanced'),
   status: text('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -168,6 +171,8 @@ export const messages = pgTable('messages', {
   retrievedChunks: jsonb('retrieved_chunks'),
   // none|investment|safety (ver docs/05 §Guardrails).
   guardrailFlag: text('guardrail_flag'),
+  // Leniência aplicada nesta resposta (F1.5.4, auditoria): strict|balanced|open.
+  leniency: text('leniency'),
   model: text('model'),
   inputTokens: integer('input_tokens'),
   outputTokens: integer('output_tokens'),

@@ -24,6 +24,7 @@ import {
 import { upsertDocument } from '../services/documents.js';
 import { buildGraphForCreator, getKnowledgeGraph } from '../services/kg-build.js';
 import { addKnowledge } from '../services/knowledge.js';
+import { LENIENCY_LEVELS, getLeniency, isLeniency, setLeniency } from '../services/leniency.js';
 import { getMindGraph } from '../services/mind-graph.js';
 import { getMindScore } from '../services/mind-score.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
@@ -77,6 +78,11 @@ const createAccessCodeBody = z.object({
 });
 
 const updateAccessCodeBody = z.object({ active: z.boolean() });
+
+// Leniency (F1.5.4): how far the clone may extrapolate.
+const leniencyBody = z.object({
+  leniency: z.enum(LENIENCY_LEVELS as unknown as [string, ...string[]]),
+});
 
 // Add Knowledge (F1.9): manually feed the clone a piece of knowledge. For the
 // MVP we support the two types that work end-to-end without extra
@@ -381,6 +387,25 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       title: parsed.data.title,
     });
     return c.json({ added: true, ...result });
+  });
+
+  // Leniency (F1.5.4) — owner-only read/update of how far the clone extrapolates.
+  router.get('/:slug/leniency', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json({ leniency: await getLeniency(getDb(), owned) });
+  });
+
+  router.put('/:slug/leniency', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = leniencyBody.safeParse(json);
+    if (!parsed.success || !isLeniency(parsed.data.leniency)) {
+      return c.json({ error: 'invalid_body' }, 400);
+    }
+    await setLeniency(getDb(), owned, parsed.data.leniency);
+    return c.json({ leniency: parsed.data.leniency });
   });
 
   // Mind Score (F1.14) — owner-only coverage/maturity metric.

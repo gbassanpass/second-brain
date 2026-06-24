@@ -19,7 +19,9 @@
 >
 > ✅ **F1.5.2 (GraphRAG no retrieval)** — `retrieveSubgraph` (proveniência dos chunks + léxico das entidades da pergunta) injeta "PRINCÍPIOS E CONEXÕES" no prompt; gate `graphRetrievalEnabled` (default on). **Provado A/B no LLM real:** "stablecoins?" COM grafo conecta dívida-EUA→poupança→estratégia americana (raciocínio do Fausto); SEM grafo fica genérico. **Citações clicáveis:** `[N]` viram pills com popover (fonte + trecho citado + "Abrir original"); mapeados por `rank`.
 >
-> ✅ **F1.5.3 (extrapolação)** — sem trecho direto mas com ≥2 princípios no grafo, o clone infere em vez de recusar ("MODO INFERÊNCIA": sem [N], marcado como inferência, guardrail CVM mantido); flag `extrapolated` até a UI (aviso 💭). Provado no LLM real ("stablecoins vs ouro" → infere dos princípios do Fausto). **Próximo: F1.5.4 (slider de leniência — quanto o clone pode extrapolar; registrar nível em messages)** → F1.5.5 (temporal, opcional). Mapa Delphi→backlog em `docs/07`. **Testes: 392 verdes.**
+> ✅ **F1.5.3 (extrapolação)** — sem trecho direto mas com ≥2 princípios no grafo, o clone infere em vez de recusar ("MODO INFERÊNCIA": sem [N], marcado como inferência, guardrail CVM mantido); flag `extrapolated` até a UI (aviso 💭). Provado no LLM real ("stablecoins vs ouro" → infere dos princípios do Fausto).
+>
+> ✅ **F1.5.4 (leniência)** — `creators.leniency` strict|balanced|open (migration 0007) controla quanto extrapola (strict=nunca, balanced=≥2 fatos, open=≥1); registrado em `messages.leniency`; controle "Liberdade de inferência" na Persona do Studio; `GET|PUT /:slug/leniency`. **Próximo (último da Fase 1.5): F1.5.5 (dimensão temporal `valid_from`/`valid_to`, opcional).** Mapa Delphi→backlog em `docs/07`. **Testes: 393 verdes.**
 
 > ⚠️ **Drizzle migrations:** as migrations 0003/0004 foram escritas à mão com `when` inflado no `_journal.json`; toda migration NOVA gerada por `db:generate` precisa de `when` MAIOR que o do 0004 (`1782740600000`), senão `db:migrate` pula achando que já aplicou. Corrigido no 0005.
 
