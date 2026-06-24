@@ -28,6 +28,15 @@ import { ConversationsSection } from './ConversationsSection';
 import { MindGraph } from './MindGraph';
 import { MindScoreCard } from './MindScoreCard';
 import { TrainRoom } from './TrainRoom';
+import {
+  IconAudience,
+  IconConversations,
+  IconInsights,
+  IconKnowledge,
+  IconMind,
+  IconPersona,
+  IconTrain,
+} from './icons';
 
 type Section =
   | 'insights'
@@ -38,14 +47,14 @@ type Section =
   | 'profile'
   | 'train';
 
-const NAV: { id: Section; label: string; icon: string }[] = [
-  { id: 'insights', label: 'Insights', icon: '📈' },
-  { id: 'conversations', label: 'Conversas', icon: '💬' },
-  { id: 'audience', label: 'Audiência', icon: '👥' },
-  { id: 'knowledge', label: 'Conhecimento', icon: '🧠' },
-  { id: 'mind', label: 'Mente 3D', icon: '🌐' },
-  { id: 'profile', label: 'Persona', icon: '🪪' },
-  { id: 'train', label: 'Treinar', icon: '🎯' },
+const NAV: { id: Section; label: string; Icon: (p: { className?: string }) => JSX.Element }[] = [
+  { id: 'insights', label: 'Insights', Icon: IconInsights },
+  { id: 'conversations', label: 'Conversas', Icon: IconConversations },
+  { id: 'audience', label: 'Audiência', Icon: IconAudience },
+  { id: 'knowledge', label: 'Conhecimento', Icon: IconKnowledge },
+  { id: 'mind', label: 'Mente 3D', Icon: IconMind },
+  { id: 'profile', label: 'Persona', Icon: IconPersona },
+  { id: 'train', label: 'Treinar', Icon: IconTrain },
 ];
 
 const EMPTY_FORM: PersonaForm = {
@@ -161,7 +170,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
                   : 'text-zinc-400 hover:text-zinc-100'
               }`}
             >
-              <span aria-hidden>{n.icon}</span>
+              <n.Icon className={section === n.id ? 'text-accent-gold' : ''} />
               {n.label}
             </button>
           ))}
@@ -214,7 +223,9 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
 
           {section === 'audience' && <AccessCodesSection slug={slug} token={accessToken} />}
 
-          {section === 'mind' && <MindGraph slug={slug} token={accessToken} />}
+          {section === 'mind' && (
+            <MindGraph slug={slug} token={accessToken} displayName={displayName} />
+          )}
 
           {section === 'train' && (
             <TrainRoom slug={slug} displayName={displayName} token={accessToken} />

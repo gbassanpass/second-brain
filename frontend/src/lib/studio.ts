@@ -262,6 +262,10 @@ export interface MindGraphNode {
   type: MindNodeType;
   label: string;
   kind?: string | null;
+  url?: string | null;
+  text?: string;
+  documentId?: string;
+  documentTitle?: string | null;
 }
 
 export interface MindGraphData {
@@ -281,9 +285,22 @@ export async function fetchMindGraph(slug: string, token: string | null): Promis
 
 export type KgEntityKind = 'pessoa' | 'tema' | 'principio' | 'evento' | 'heuristica';
 
+export interface KgRelationSource {
+  documentId: string | null;
+  title: string | null;
+  url: string | null;
+  snippet: string;
+}
+
 export interface KnowledgeGraph {
   entities: { id: string; name: string; kind: string | null }[];
-  relations: { src: string; relation: string; dst: string; confidence: number }[];
+  relations: {
+    src: string;
+    relation: string;
+    dst: string;
+    confidence: number;
+    source: KgRelationSource | null;
+  }[];
   stats: { entities: number; relations: number };
 }
 

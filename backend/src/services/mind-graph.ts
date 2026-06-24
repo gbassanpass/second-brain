@@ -17,6 +17,13 @@ export interface MindNode {
   label: string;
   /** Document kind (reel/transcript/article/qa…) — only on document nodes. */
   kind?: string | null;
+  /** Source URL (document nodes) for "open original". */
+  url?: string | null;
+  /** Full chunk text (chunk nodes) for the detail panel. */
+  text?: string;
+  /** Parent document id + title (chunk nodes) so the panel can link back. */
+  documentId?: string;
+  documentTitle?: string | null;
 }
 
 export interface MindLink {
@@ -62,9 +69,15 @@ export async function getMindGraph(
   }
 
   const docs = await db
-    .select({ id: documents.id, title: documents.title, kind: documents.kind })
+    .select({
+      id: documents.id,
+      title: documents.title,
+      kind: documents.kind,
+      url: documents.url,
+    })
     .from(documents)
     .where(eq(documents.creatorId, creatorId));
+  const docMeta = new Map(docs.map((d) => [d.id, { title: d.title, url: d.url }]));
 
   const [chunkCount] = await db
     .select({ value: count() })
@@ -96,6 +109,8 @@ export async function getMindGraph(
       type: 'document',
       label: d.title?.trim() || d.kind || 'Documento',
       kind: d.kind,
+      url: d.url,
+      documentId: d.id,
     });
     links.push({ source: `creator:${creator.id}`, target: nodeId });
   }
@@ -103,7 +118,15 @@ export async function getMindGraph(
   for (const ch of shownChunks) {
     if (!ch.documentId || !docNodeIds.has(ch.documentId)) continue;
     const nodeId = `chunk:${ch.id}`;
-    nodes.push({ id: nodeId, type: 'chunk', label: snippet(ch.text) });
+    const parent = docMeta.get(ch.documentId);
+    nodes.push({
+      id: nodeId,
+      type: 'chunk',
+      label: snippet(ch.text),
+      text: ch.text,
+      documentId: ch.documentId,
+      documentTitle: parent?.title ?? null,
+    });
     links.push({ source: `doc:${ch.documentId}`, target: nodeId });
   }
 

@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { chunks, kgEntities, kgRelations } from '../db/schema.js';
+import { chunks, documents, kgEntities, kgRelations } from '../db/schema.js';
 import type { LLMClient } from '../llm/base.js';
 import { type EntityKind, type ExtractedGraph, extractGraphFromText } from './kg-extract.js';
 
@@ -147,11 +147,19 @@ export interface KgEntityView {
   name: string;
   kind: string | null;
 }
+export interface KgRelationSource {
+  documentId: string | null;
+  title: string | null;
+  url: string | null;
+  snippet: string;
+}
 export interface KgRelationView {
   src: string;
   relation: string;
   dst: string;
   confidence: number;
+  /** Where this relation was extracted from (provenance). */
+  source: KgRelationSource | null;
 }
 export interface KnowledgeGraphView {
   entities: KgEntityView[];
@@ -172,14 +180,21 @@ export async function getKnowledgeGraph(
 
   const nameById = new Map(entities.map((e) => [e.id, e.name]));
 
+  // Join each relation to its source chunk → document for provenance.
   const rels = await db
     .select({
       srcId: kgRelations.srcId,
       dstId: kgRelations.dstId,
       relation: kgRelations.relation,
       confidence: kgRelations.confidence,
+      chunkText: chunks.text,
+      documentId: documents.id,
+      title: documents.title,
+      url: documents.url,
     })
     .from(kgRelations)
+    .leftJoin(chunks, eq(kgRelations.sourceChunk, chunks.id))
+    .leftJoin(documents, eq(chunks.documentId, documents.id))
     .where(eq(kgRelations.creatorId, creatorId))
     .limit(opts.maxRelations ?? 500);
 
@@ -188,6 +203,14 @@ export async function getKnowledgeGraph(
     relation: r.relation,
     dst: nameById.get(r.dstId) ?? '?',
     confidence: r.confidence,
+    source: r.chunkText
+      ? {
+          documentId: r.documentId,
+          title: r.title,
+          url: r.url,
+          snippet: r.chunkText.replace(/\s+/g, ' ').trim().slice(0, 240),
+        }
+      : null,
   }));
 
   return {
