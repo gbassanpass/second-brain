@@ -7,6 +7,7 @@ import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
 import { personaCardSchema } from '../rag/persona.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
+import { getConversationMessages, listConversations } from '../services/conversations.js';
 import {
   createCreator,
   getPublicCreator,
@@ -133,6 +134,20 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     if (typeof owned !== 'string') return owned;
     const creatorId = owned;
     return c.json(await getCreatorAnalytics(getDb(), creatorId));
+  });
+
+  // Conversas que a audiência teve com o clone (F1.13).
+  router.get('/:slug/conversations', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json({ conversations: await listConversations(getDb(), owned) });
+  });
+
+  router.get('/:slug/conversations/:id', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const msgs = await getConversationMessages(getDb(), owned, c.req.param('id'));
+    return c.json({ messages: msgs });
   });
 
   router.post('/:slug/documents', async (c) => {

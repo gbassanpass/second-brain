@@ -22,6 +22,7 @@ import {
   savePersona,
 } from '../lib/studio';
 import { useSession } from '../lib/useSession';
+import { ConversationsSection } from './ConversationsSection';
 import { TrainRoom } from './TrainRoom';
 
 type Section = 'insights' | 'conversations' | 'audience' | 'knowledge' | 'profile' | 'train';
@@ -181,9 +182,11 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
           )}
 
           {section === 'conversations' && (
-            <Empty>
-              Em breve: o histórico de conversas que fizeram com {displayName} aparece aqui.
-            </Empty>
+            <ConversationsSection
+              slug={slug}
+              token={accessToken}
+              initials={displayName.slice(0, 1).toUpperCase()}
+            />
           )}
 
           {section === 'audience' && (

@@ -217,3 +217,42 @@ export async function fetchAnalytics(
   if (!res.ok) throw new Error(`analytics load failed: ${res.status}`);
   return (await res.json()) as CreatorAnalytics;
 }
+
+export interface ConversationSummary {
+  id: string;
+  firstQuestion: string | null;
+  messageCount: number;
+  lastActivity: string | null;
+  createdAt: string;
+}
+
+export interface ConversationMessage {
+  role: string;
+  content: string;
+  guardrailFlag: string | null;
+  createdAt: string;
+}
+
+export async function fetchConversations(
+  slug: string,
+  token: string | null,
+): Promise<ConversationSummary[]> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/conversations`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`conversations load failed: ${res.status}`);
+  return ((await res.json()) as { conversations: ConversationSummary[] }).conversations;
+}
+
+export async function fetchConversationMessages(
+  slug: string,
+  id: string,
+  token: string | null,
+): Promise<ConversationMessage[]> {
+  const res = await fetch(
+    `/api/creators/${encodeURIComponent(slug)}/conversations/${encodeURIComponent(id)}`,
+    { headers: authHeaders(token) },
+  );
+  if (!res.ok) throw new Error(`conversation load failed: ${res.status}`);
+  return ((await res.json()) as { messages: ConversationMessage[] }).messages;
+}
