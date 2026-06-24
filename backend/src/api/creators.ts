@@ -22,6 +22,7 @@ import {
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
 import { addKnowledge } from '../services/knowledge.js';
+import { getMindScore } from '../services/mind-score.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource } from '../services/source-ingest.js';
@@ -368,6 +369,13 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       title: parsed.data.title,
     });
     return c.json({ added: true, ...result });
+  });
+
+  // Mind Score (F1.14) — owner-only coverage/maturity metric.
+  router.get('/:slug/mind-score', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json(await getMindScore(getDb(), owned));
   });
 
   // Access codes (F1.17) — owner-only CRUD. The redeem endpoint lives on the

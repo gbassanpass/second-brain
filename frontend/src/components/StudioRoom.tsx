@@ -25,6 +25,7 @@ import {
 import { useSession } from '../lib/useSession';
 import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
+import { MindScoreCard } from './MindScoreCard';
 import { TrainRoom } from './TrainRoom';
 
 type Section = 'insights' | 'conversations' | 'audience' | 'knowledge' | 'profile' | 'train';
@@ -169,12 +170,16 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
         <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-10">
           <h1 className="text-2xl font-semibold">{NAV.find((n) => n.id === section)?.label}</h1>
 
-          {section === 'insights' &&
-            (analytics ? (
-              <AnalyticsSection analytics={analytics} />
-            ) : (
-              <Empty>Sem dados ainda.</Empty>
-            ))}
+          {section === 'insights' && (
+            <div className="flex flex-col gap-6">
+              <MindScoreCard slug={slug} token={accessToken} />
+              {analytics ? (
+                <AnalyticsSection analytics={analytics} />
+              ) : (
+                <Empty>Sem conversas ainda — os números aparecem quando a audiência usar.</Empty>
+              )}
+            </div>
+          )}
 
           {section === 'profile' && (
             <ProfileSection slug={slug} token={accessToken} form={form} onChange={setForm} />

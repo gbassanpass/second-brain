@@ -233,6 +233,28 @@ export interface ConversationMessage {
   createdAt: string;
 }
 
+export type MindLevel = 'iniciante' | 'aprendiz' | 'experiente' | 'mestre';
+
+export interface MindScore {
+  score: number;
+  level: MindLevel;
+  components: {
+    persona: { present: boolean; points: number; max: number };
+    knowledge: { chunks: number; documents: number; points: number; max: number };
+    training: { corrections: number; points: number; max: number };
+    confidence: { answered: number; answers: number; rate: number; points: number; max: number };
+  };
+  nextStep: string;
+}
+
+export async function fetchMindScore(slug: string, token: string | null): Promise<MindScore> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/mind-score`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`mind score load failed: ${res.status}`);
+  return (await res.json()) as MindScore;
+}
+
 export async function fetchConversations(
   slug: string,
   token: string | null,
