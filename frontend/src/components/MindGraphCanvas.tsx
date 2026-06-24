@@ -62,6 +62,7 @@ export function MindGraphCanvas({
   chrome?: boolean;
 }) {
   const fgRef = useRef<ForceGraphMethods>();
+  const fittedRef = useRef(false);
   const glow = useMemo(makeGlowTexture, []);
   const [query, setQuery] = useState('');
   const [positions, setPositions] = useState<GNode[]>([]);
@@ -148,7 +149,14 @@ export function MindGraphCanvas({
         enableNodeDrag={false}
         warmupTicks={60}
         cooldownTicks={120}
-        onEngineStop={() => setPositions(nodes.map((n) => ({ ...n })))}
+        onEngineStop={() => {
+          setPositions(nodes.map((n) => ({ ...n })));
+          // Frame the graph once it settles so the initial zoom isn't too far.
+          if (!fittedRef.current) {
+            fgRef.current?.zoomToFit(700, chrome ? 60 : 30);
+            fittedRef.current = true;
+          }
+        }}
         onNodeClick={(node: object) => {
           const n = node as GNode;
           flyTo(n);

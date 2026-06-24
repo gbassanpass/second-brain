@@ -54,6 +54,9 @@ export default function HomePage() {
         <InsightsSpotlight />
       </Reveal>
       <Reveal>
+        <Monetization />
+      </Reveal>
+      <Reveal>
         <SocialProof />
       </Reveal>
       <Reveal>
@@ -314,26 +317,28 @@ function MindSpotlight() {
 function InsightsSpotlight() {
   return (
     <section className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2">
-      <div className="order-2 rounded-3xl border border-zinc-800 bg-bg-sidebar p-5 md:order-1">
-        <p className="text-xs font-medium text-zinc-500">✨ Pautas sugeridas</p>
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="rounded-xl border border-zinc-800 bg-bg p-3">
-            <p className="text-sm font-medium text-zinc-100">Stablecoins ameaçam a poupança?</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">
-                lacuna
-              </span>{' '}
-              perguntado 3× e seu clone não soube responder
-            </p>
+      <div className="order-2 md:order-1">
+        <BrowserFrame url="falacomigo.ai/studio · Insights">
+          <p className="px-1 text-xs font-medium text-zinc-500">✨ Pautas sugeridas</p>
+          <div className="mt-2 flex flex-col gap-2">
+            <div className="rounded-xl border border-zinc-800 bg-bg p-3">
+              <p className="text-sm font-medium text-zinc-100">Stablecoins ameaçam a poupança?</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-400">
+                  lacuna
+                </span>{' '}
+                perguntado 3× e seu clone não soube responder
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-bg p-3">
+              <p className="text-sm font-medium text-zinc-100">Como você decide na incerteza</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-zinc-400">demanda</span>{' '}
+                tema mais frequente da semana
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border border-zinc-800 bg-bg p-3">
-            <p className="text-sm font-medium text-zinc-100">Como você decide na incerteza</p>
-            <p className="mt-1 text-xs text-zinc-500">
-              <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-zinc-400">demanda</span>{' '}
-              tema mais frequente da semana
-            </p>
-          </div>
-        </div>
+        </BrowserFrame>
       </div>
       <div className="order-1 md:order-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
@@ -543,6 +548,95 @@ function Pricing() {
             </a>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+/** Fake browser chrome around a mock — makes it read like a product screenshot. */
+function BrowserFrame({ url, children }: { url: string; children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-bg-sidebar shadow-2xl">
+      <div className="flex items-center gap-2 border-zinc-800 border-b px-3 py-2.5">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-400/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-yellow-400/70" />
+        <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
+        <span className="ml-2 flex-1 truncate rounded-md bg-bg px-3 py-1 text-[11px] text-zinc-500">
+          {url}
+        </span>
+      </div>
+      <div className="p-3">{children}</div>
+    </div>
+  );
+}
+
+function Monetization() {
+  const items = [
+    {
+      title: 'Assinatura recorrente',
+      body: 'Cobre pelo acesso ao seu clone. Receita previsível, todo mês — Stripe no código; Hotmart/Kiwify na operação.',
+    },
+    {
+      title: 'Códigos de acesso',
+      body: 'Libere pilotos, lançamentos e convidados com um link. Veja quem entrou e quem mais conversa.',
+    },
+    {
+      title: 'Você foca no conteúdo',
+      body: 'O clone atende, engaja e converte 24/7 — inclusive enquanto você dorme.',
+    },
+  ];
+  return (
+    <section className="border-zinc-800/70 border-y bg-bg-sidebar/40">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
+            Monetização
+          </span>
+          <h2 className="mt-2 font-display text-3xl font-medium tracking-tight md:text-4xl">
+            Sua audiência vira receita
+          </h2>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
+            Transforme seguidores em assinantes. Seu clone responde no seu tom e converte interesse
+            em receita recorrente — sem você responder uma DM sequer.
+          </p>
+          <ul className="mt-6 flex flex-col gap-4">
+            {items.map((it) => (
+              <li key={it.title} className="flex gap-3">
+                <span className="mt-1 text-accent-gold">✓</span>
+                <span>
+                  <span className="block text-sm font-medium text-zinc-100">{it.title}</span>
+                  <span className="block text-sm text-zinc-400">{it.body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        {/* Paywall mock */}
+        <div className="rounded-3xl border border-zinc-800 bg-bg p-6 shadow-xl">
+          <div className="flex items-center gap-3">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-gold text-sm font-semibold text-accent">
+              FB
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-zinc-100">Mente digital de Fausto Bassan</p>
+              <p className="text-xs text-zinc-500">Geopolítica e atualidade, sem torcer</p>
+            </div>
+          </div>
+          <div className="mt-5 rounded-2xl border border-zinc-800 bg-bg-sidebar p-4 text-center">
+            <p className="text-xs text-zinc-500">Acesso ilimitado</p>
+            <p className="mt-1">
+              <span className="font-display text-3xl font-medium text-zinc-100">R$ 29</span>
+              <span className="text-sm text-zinc-500">/mês</span>
+            </p>
+            <button
+              type="button"
+              className="mt-3 w-full rounded-xl bg-accent-gold py-2.5 text-sm font-semibold text-accent"
+            >
+              Assinar e conversar
+            </button>
+            <p className="mt-3 text-[11px] text-zinc-600">ou tenho um código de acesso</p>
+          </div>
+        </div>
       </div>
     </section>
   );
