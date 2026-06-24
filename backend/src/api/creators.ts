@@ -16,6 +16,7 @@ import {
   resolveOwnedCreator,
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
+import { addKnowledge } from '../services/knowledge.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource } from '../services/source-ingest.js';
@@ -57,6 +58,22 @@ const trainBody = z.object({
 const instagramBody = z.object({
   handle: z.string().min(1).max(120),
 });
+
+// Add Knowledge (F1.9): manually feed the clone a piece of knowledge. For the
+// MVP we support the two types that work end-to-end without extra
+// fetching/parsing — free text and Q&A. Both are indexed immediately.
+const knowledgeBody = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('note'),
+    text: z.string().min(1).max(20000),
+    title: z.string().min(1).max(120).optional(),
+  }),
+  z.object({
+    type: z.literal('qa'),
+    question: z.string().min(1).max(2000),
+    answer: z.string().min(1).max(8000),
+  }),
+]);
 
 const createCreatorBody = z.object({
   displayName: z.string().min(1).max(120),
@@ -298,6 +315,44 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       answer: parsed.data.answer,
     });
     return c.json({ learned: true, ...result });
+  });
+
+  // Add Knowledge (F1.9): owner-only. Add free text or a Q&A to the base and
+  // index it immediately so retrieval can use it on the next question.
+  router.post('/:slug/knowledge', ...studioGate, async (c) => {
+    if (!deps.getEmbedder) return c.json({ error: 'knowledge_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = knowledgeBody.safeParse(json);
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+    }
+
+    if (parsed.data.type === 'qa') {
+      const [creator] = await getDb()
+        .select({ displayName: creators.displayName })
+        .from(creators)
+        .where(eq(creators.id, owned))
+        .limit(1);
+      if (!creator) return c.json({ error: 'creator_not_found' }, 404);
+      const result = await addKnowledge(getDb(), deps.getEmbedder(), {
+        type: 'qa',
+        creatorId: owned,
+        creatorName: creator.displayName,
+        question: parsed.data.question,
+        answer: parsed.data.answer,
+      });
+      return c.json({ added: true, ...result });
+    }
+
+    const result = await addKnowledge(getDb(), deps.getEmbedder(), {
+      type: 'note',
+      creatorId: owned,
+      text: parsed.data.text,
+      title: parsed.data.title,
+    });
+    return c.json({ added: true, ...result });
   });
 
   return router;

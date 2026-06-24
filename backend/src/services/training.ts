@@ -1,7 +1,6 @@
 import type { Database } from '../db/client.js';
 import type { Embedder } from '../embeddings/base.js';
-import { upsertDocument } from './documents.js';
-import { indexDocument } from './indexing.js';
+import { addKnowledge } from './knowledge.js';
 
 /**
  * The real "training" mechanic (F1.12). We don't fine-tune a model — the clone
@@ -10,8 +9,8 @@ import { indexDocument } from './indexing.js';
  * retrieval matches this Q&A (question↔question similarity is high) and the
  * clone answers with the creator's own corrected wording.
  *
- * Storing BOTH the question and the corrected answer in the text makes the
- * embedding match the question well while giving the LLM the answer to echo.
+ * A correction is just a manually-added Q&A piece of knowledge (F1.9), so this
+ * delegates to `addKnowledge` to share the upsert + immediate index path.
  */
 export interface SaveCorrectionInput {
   creatorId: string;
@@ -30,20 +29,12 @@ export async function saveTrainingCorrection(
   embedder: Embedder,
   input: SaveCorrectionInput,
 ): Promise<SaveCorrectionResult> {
-  const question = input.question.trim();
-  const answer = input.answer.trim();
-  const rawText = `Pergunta: ${question}\n\nResposta de ${input.creatorName}: ${answer}`;
-
-  const up = await upsertDocument(db, {
+  const { documentId, chunkCount } = await addKnowledge(db, embedder, {
+    type: 'qa',
     creatorId: input.creatorId,
-    rawText,
-    kind: 'qa',
-    title: question.slice(0, 80),
+    creatorName: input.creatorName,
+    question: input.question,
+    answer: input.answer,
   });
-  const idx = await indexDocument(db, embedder, {
-    creatorId: input.creatorId,
-    documentId: up.document.id,
-    rawText,
-  });
-  return { documentId: up.document.id, chunkCount: idx.chunkCount };
+  return { documentId, chunkCount };
 }

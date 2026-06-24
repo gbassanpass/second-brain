@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { type KnowledgeInput, addKnowledge } from '../lib/knowledge';
 import { generatePersona, importInstagram, parseInstagramHandle } from '../lib/onboarding';
 import {
   type CreatorAnalytics,
@@ -100,6 +101,12 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
     };
   }, [status, accessToken, slug]);
 
+  const reloadDocuments = useCallback(() => {
+    fetchDocuments(slug, accessToken)
+      .then(setDocuments)
+      .catch(() => undefined);
+  }, [slug, accessToken]);
+
   if (phase === 'loading') return <Centered>Carregando o Studio…</Centered>;
   if (phase === 'anon')
     return (
@@ -178,6 +185,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
               token={accessToken}
               sources={sources}
               documents={documents}
+              onAdded={reloadDocuments}
             />
           )}
 
@@ -251,11 +259,13 @@ function KnowledgeSection({
   token,
   sources,
   documents,
+  onAdded,
 }: {
   slug: string;
   token: string | null;
   sources: SourceSummary[];
   documents: DocumentSummary[];
+  onAdded: () => void;
 }) {
   const [handle, setHandle] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -300,8 +310,138 @@ function KnowledgeSection({
         </div>
         {msg ? <p className="mt-2 text-xs text-zinc-400">{msg}</p> : null}
       </div>
+      <AddKnowledge slug={slug} token={token} onAdded={onAdded} />
       <SourcesSection sources={sources} />
       <DocumentsSection documents={documents} />
+    </div>
+  );
+}
+
+type KnowledgeTab = 'note' | 'qa';
+
+/** Add Knowledge (F1.9) — manually add free text or a Q&A to the base. */
+function AddKnowledge({
+  slug,
+  token,
+  onAdded,
+}: {
+  slug: string;
+  token: string | null;
+  onAdded: () => void;
+}) {
+  const [tab, setTab] = useState<KnowledgeTab>('note');
+  const [title, setTitle] = useState('');
+  const [text, setText] = useState('');
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const ready = tab === 'note' ? text.trim().length > 0 : question.trim() && answer.trim();
+
+  async function submit() {
+    if (!ready || busy) return;
+    const input: KnowledgeInput =
+      tab === 'note'
+        ? { type: 'note', text: text.trim(), title: title.trim() || undefined }
+        : { type: 'qa', question: question.trim(), answer: answer.trim() };
+    setBusy(true);
+    setMsg(null);
+    try {
+      await addKnowledge(slug, input, token);
+      setMsg('Adicionado e indexado ✓ — o clone já pode usar.');
+      setTitle('');
+      setText('');
+      setQuestion('');
+      setAnswer('');
+      onAdded();
+    } catch {
+      setMsg('Não consegui adicionar agora.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-zinc-700 bg-bg-assistant p-4">
+      <p className="text-sm font-medium">Adicionar conhecimento</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        Ensine o clone com um texto livre ou um par pergunta/resposta. Fica disponível na hora.
+      </p>
+
+      <div className="mt-3 flex gap-2">
+        {(
+          [
+            { id: 'note', label: 'Texto' },
+            { id: 'qa', label: 'Pergunta & resposta' },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => {
+              setTab(t.id);
+              setMsg(null);
+            }}
+            className={`rounded-full border px-3 py-1 text-xs transition ${
+              tab === t.id
+                ? 'border-accent-gold text-accent-gold'
+                : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-col gap-2">
+        {tab === 'note' ? (
+          <>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título (opcional)"
+              className="rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+            />
+            <textarea
+              value={text}
+              rows={5}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Cole ou escreva o que o clone deve saber…"
+              className="resize-y rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+            />
+          </>
+        ) : (
+          <>
+            <input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Pergunta (ex.: Qual seu livro favorito?)"
+              className="rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+            />
+            <textarea
+              value={answer}
+              rows={4}
+              onChange={(e) => setAnswer(e.target.value)}
+              placeholder="Resposta, na sua voz…"
+              className="resize-y rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+            />
+          </>
+        )}
+
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-zinc-600">URL, YouTube e arquivo em breve.</span>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={!ready || busy}
+            className="rounded-xl bg-accent-gold px-4 py-2 text-sm font-semibold text-accent transition hover:opacity-90 disabled:opacity-40"
+          >
+            {busy ? 'Adicionando…' : 'Adicionar'}
+          </button>
+        </div>
+        {msg ? <p className="text-xs text-zinc-400">{msg}</p> : null}
+      </div>
     </div>
   );
 }
