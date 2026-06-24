@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { DEFAULT_AFTER_AUTH, redirectParamFromUrl, withRedirect } from '../../lib/redirect';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
 type Status = 'idle' | 'working' | 'check_email' | 'error';
@@ -10,6 +11,13 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
+
+  // If they arrived from a shared chat link, return there after signup instead
+  // of pushing everyone into "create your own mind".
+  const target = redirectParamFromUrl();
+  const after = target ?? DEFAULT_AFTER_AUTH;
+  // Audience (came from a creator link) vs creator (generic signup).
+  const isAudience = target !== null;
 
   async function signUp() {
     const e = email.trim();
@@ -21,15 +29,18 @@ export default function SignupPage() {
     setStatus('working');
     setMessage('');
     try {
+      const redirectTo =
+        typeof window !== 'undefined' ? `${window.location.origin}${after}` : undefined;
       const { data, error } = await getSupabaseBrowserClient().auth.signUp({
         email: e,
         password,
+        options: { emailRedirectTo: redirectTo },
       });
       if (error) throw error;
       // With email confirmation disabled (local) a session comes back right away
-      // → straight to onboarding. Otherwise ask them to confirm by email.
+      // → go to the return path. Otherwise ask them to confirm by email.
       if (data.session) {
-        window.location.href = '/onboarding';
+        window.location.href = after;
         return;
       }
       setStatus('check_email');
@@ -44,7 +55,9 @@ export default function SignupPage() {
       <div>
         <h1 className="text-2xl font-semibold">Criar conta</h1>
         <p className="mt-2 text-sm text-zinc-400">
-          Crie sua conta para montar a sua mente digital.
+          {isAudience
+            ? 'Crie sua conta para continuar a conversa.'
+            : 'Crie sua conta para montar a sua mente digital.'}
         </p>
       </div>
 
@@ -90,7 +103,10 @@ export default function SignupPage() {
 
       <p className="text-center text-sm text-zinc-500">
         Já tem conta?{' '}
-        <a href="/login" className="text-accent-gold underline">
+        <a
+          href={target ? withRedirect('/login', target) : '/login'}
+          className="text-accent-gold underline"
+        >
           Entrar
         </a>
       </p>

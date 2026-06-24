@@ -1,17 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { DEFAULT_AFTER_AUTH, redirectParamFromUrl, withRedirect } from '../../lib/redirect';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
 type Status = 'idle' | 'working' | 'sent' | 'error';
-
-const REDIRECT_TO = '/c/fausto/chat';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const [message, setMessage] = useState('');
+
+  // Return to where the visitor came from (e.g. a shared chat link), or to the
+  // creator onboarding when there's no context.
+  const target = redirectParamFromUrl() ?? DEFAULT_AFTER_AUTH;
 
   async function signInWithPassword() {
     const e = email.trim();
@@ -24,8 +27,8 @@ export default function LoginPage() {
         password,
       });
       if (error) throw error;
-      // Session is now in localStorage on this origin — go straight to the chat.
-      window.location.href = REDIRECT_TO;
+      // Session is now in localStorage on this origin — go to the return path.
+      window.location.href = target;
     } catch (err) {
       setStatus('error');
       setMessage(err instanceof Error ? err.message : 'Falha ao entrar.');
@@ -39,7 +42,7 @@ export default function LoginPage() {
     setMessage('');
     try {
       const redirectTo =
-        typeof window !== 'undefined' ? `${window.location.origin}${REDIRECT_TO}` : undefined;
+        typeof window !== 'undefined' ? `${window.location.origin}${target}` : undefined;
       const { error } = await getSupabaseBrowserClient().auth.signInWithOtp({
         email: e,
         options: { emailRedirectTo: redirectTo },
@@ -110,7 +113,7 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-zinc-500">
         Não tem conta?{' '}
-        <a href="/signup" className="text-accent-gold underline">
+        <a href={withRedirect('/signup', target)} className="text-accent-gold underline">
           Criar conta
         </a>
       </p>

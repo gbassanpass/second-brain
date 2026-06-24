@@ -10,6 +10,7 @@ import {
   startCheckout,
 } from '../lib/chat';
 import type { LandingView } from '../lib/creator';
+import { currentPathWithQuery, withRedirect } from '../lib/redirect';
 import { useSession } from '../lib/useSession';
 import { Composer } from './Composer';
 import { EmptyState } from './EmptyState';
@@ -213,15 +214,25 @@ function GateArea({
     return <p className="py-3 text-center text-sm text-zinc-500">Verificando acesso…</p>;
   }
   if (gate === 'anon') {
+    // Carry the current chat URL (incl. ?code=) so login/signup return here.
+    const back = currentPathWithQuery();
     return (
       <div className="flex flex-col items-center gap-2 py-3 text-center">
         <p className="text-sm text-zinc-400">Entre para conversar com {view.displayName}.</p>
-        <a
-          href="/login"
-          className="rounded-2xl bg-accent-gold px-5 py-2.5 text-sm font-semibold text-accent transition hover:opacity-90"
-        >
-          Entrar
-        </a>
+        <div className="flex gap-2">
+          <a
+            href={withRedirect('/login', back)}
+            className="rounded-2xl bg-accent-gold px-5 py-2.5 text-sm font-semibold text-accent transition hover:opacity-90"
+          >
+            Entrar
+          </a>
+          <a
+            href={withRedirect('/signup', back)}
+            className="rounded-2xl border border-zinc-700 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:border-accent-gold hover:text-accent-gold"
+          >
+            Criar conta
+          </a>
+        </div>
       </div>
     );
   }
