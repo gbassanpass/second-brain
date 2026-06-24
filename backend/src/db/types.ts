@@ -36,6 +36,7 @@ export const documentKindSchema = z.enum([
   'article',
   'transcript',
   'upload',
+  'qa',
 ]);
 export const messageRoleSchema = z.enum(['user', 'assistant']);
 export const guardrailFlagSchema = z.enum(['none', 'investment', 'safety']);

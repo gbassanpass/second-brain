@@ -22,6 +22,7 @@ import {
   savePersona,
 } from '../lib/studio';
 import { useSession } from '../lib/useSession';
+import { TrainRoom } from './TrainRoom';
 
 type Section = 'insights' | 'conversations' | 'audience' | 'knowledge' | 'profile' | 'train';
 
@@ -193,18 +194,7 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
           )}
 
           {section === 'train' && (
-            <div className="flex flex-col gap-3">
-              <p className="text-sm text-zinc-400">
-                Converse com seu clone e calibre as respostas. (O loop de "essa resposta soa como
-                você?" chega em breve.)
-              </p>
-              <a
-                href={`/c/${slug}/chat`}
-                className="w-fit rounded-2xl bg-accent-gold px-5 py-2.5 text-sm font-semibold text-accent transition hover:opacity-90"
-              >
-                Abrir o chat de treino
-              </a>
-            </div>
+            <TrainRoom slug={slug} displayName={displayName} token={accessToken} />
           )}
         </div>
       </main>

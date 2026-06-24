@@ -1,4 +1,11 @@
-export type DocumentKind = 'reel' | 'video' | 'caption' | 'article' | 'transcript' | 'upload';
+export type DocumentKind =
+  | 'reel'
+  | 'video'
+  | 'caption'
+  | 'article'
+  | 'transcript'
+  | 'upload'
+  | 'qa';
 
 export interface RawDocument {
   /** Stable id within the source (e.g. sha256 of the relative path). */

@@ -83,6 +83,7 @@ export function createApp(deps: AppDeps = {}) {
       enqueueSync: deps.enqueueSync ?? defaultEnqueueSync,
       getLLM: () => createLLMClient(getConfig()),
       personaModel: getConfig().LLM_DEFAULT_MODEL,
+      getEmbedder: () => createEmbedder(getConfig()),
     }),
   );
   app.route('/api/sources', createSourcesRouter(getDb, deps.enqueueSync ?? defaultEnqueueSync));

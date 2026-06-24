@@ -3,6 +3,7 @@ import { type Context, Hono } from 'hono';
 import { z } from 'zod';
 import { creators } from '../db/schema.js';
 import { documentKindSchema } from '../db/types.js';
+import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
 import { personaCardSchema } from '../rag/persona.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
@@ -17,6 +18,7 @@ import { upsertDocument } from '../services/documents.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource } from '../services/source-ingest.js';
+import { saveTrainingCorrection } from '../services/training.js';
 import {
   type AuthVariables,
   type RequireAuthDeps,
@@ -41,7 +43,15 @@ export interface CreatorsRouterDeps extends RequireAuthDeps {
   getLLM?: () => LLMClient;
   /** Model used for persona generation. */
   personaModel?: string;
+  /** Embedder for indexing training corrections (F1.12). */
+  getEmbedder?: () => Embedder;
 }
+
+const trainBody = z.object({
+  question: z.string().min(1).max(2000),
+  answer: z.string().min(1).max(8000),
+  rating: z.enum(['nada', 'pouco', 'meio', 'quase', 'exato']).optional(),
+});
 
 const instagramBody = z.object({
   handle: z.string().min(1).max(120),
@@ -244,6 +254,35 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       }
       throw err;
     }
+  });
+
+  // Train (F1.12): the owner teaches the clone the "right" answer to a question.
+  // The correction is persisted as a high-signal Q&A document and indexed, so
+  // retrieval surfaces it next time a similar question comes — real training in
+  // a RAG system (no fine-tuning).
+  router.post('/:slug/train', ...studioGate, async (c) => {
+    if (!deps.getEmbedder) return c.json({ error: 'train_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = trainBody.safeParse(json);
+    if (!parsed.success) {
+      return c.json({ error: 'invalid_body', issues: parsed.error.issues }, 400);
+    }
+    const [creator] = await getDb()
+      .select({ displayName: creators.displayName })
+      .from(creators)
+      .where(eq(creators.id, owned))
+      .limit(1);
+    if (!creator) return c.json({ error: 'creator_not_found' }, 404);
+
+    const result = await saveTrainingCorrection(getDb(), deps.getEmbedder(), {
+      creatorId: owned,
+      creatorName: creator.displayName,
+      question: parsed.data.question,
+      answer: parsed.data.answer,
+    });
+    return c.json({ learned: true, ...result });
   });
 
   return router;
