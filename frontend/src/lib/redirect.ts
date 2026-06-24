@@ -5,6 +5,7 @@
  * return to it after auth — so the audience lands back on the chat, not on the
  * creator onboarding.
  */
+import { useEffect, useState } from 'react';
 
 /** Where creators go after signup when there's no specific return path. */
 export const DEFAULT_AFTER_AUTH = '/onboarding';
@@ -34,4 +35,17 @@ export function withRedirect(base: string, target: string): string {
 export function currentPathWithQuery(): string {
   if (typeof window === 'undefined') return '/';
   return window.location.pathname + window.location.search;
+}
+
+/**
+ * Reads the sanitized `redirect` param, but only after mount so the first
+ * client render matches the server (which has no `window`) — avoids React
+ * hydration mismatches. Returns `null` until mounted, then the real value.
+ */
+export function useRedirectTarget(): string | null {
+  const [target, setTarget] = useState<string | null>(null);
+  useEffect(() => {
+    setTarget(redirectParamFromUrl());
+  }, []);
+  return target;
 }

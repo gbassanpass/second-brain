@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DEFAULT_AFTER_AUTH, redirectParamFromUrl, withRedirect } from '../../lib/redirect';
+import { DEFAULT_AFTER_AUTH, useRedirectTarget, withRedirect } from '../../lib/redirect';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
 type Status = 'idle' | 'working' | 'check_email' | 'error';
@@ -13,8 +13,9 @@ export default function SignupPage() {
   const [message, setMessage] = useState('');
 
   // If they arrived from a shared chat link, return there after signup instead
-  // of pushing everyone into "create your own mind".
-  const target = redirectParamFromUrl();
+  // of pushing everyone into "create your own mind". Read after mount to avoid
+  // a hydration mismatch (server has no `window`).
+  const target = useRedirectTarget();
   const after = target ?? DEFAULT_AFTER_AUTH;
   // Audience (came from a creator link) vs creator (generic signup).
   const isAudience = target !== null;

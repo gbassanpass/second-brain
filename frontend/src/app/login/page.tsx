@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { DEFAULT_AFTER_AUTH, redirectParamFromUrl, withRedirect } from '../../lib/redirect';
+import { DEFAULT_AFTER_AUTH, useRedirectTarget, withRedirect } from '../../lib/redirect';
 import { getSupabaseBrowserClient } from '../../lib/supabase';
 
 type Status = 'idle' | 'working' | 'sent' | 'error';
@@ -13,8 +13,9 @@ export default function LoginPage() {
   const [message, setMessage] = useState('');
 
   // Return to where the visitor came from (e.g. a shared chat link), or to the
-  // creator onboarding when there's no context.
-  const target = redirectParamFromUrl() ?? DEFAULT_AFTER_AUTH;
+  // creator onboarding when there's no context. Read after mount to avoid a
+  // hydration mismatch (server has no `window`).
+  const target = useRedirectTarget() ?? DEFAULT_AFTER_AUTH;
 
   async function signInWithPassword() {
     const e = email.trim();
