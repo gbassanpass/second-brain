@@ -255,6 +255,30 @@ export async function fetchMindScore(slug: string, token: string | null): Promis
   return (await res.json()) as MindScore;
 }
 
+export type MindNodeType = 'creator' | 'document' | 'chunk';
+
+export interface MindGraphNode {
+  id: string;
+  type: MindNodeType;
+  label: string;
+  kind?: string | null;
+}
+
+export interface MindGraphData {
+  nodes: MindGraphNode[];
+  links: { source: string; target: string }[];
+  stats: { documents: number; chunks: number; shownChunks: number };
+  truncated: boolean;
+}
+
+export async function fetchMindGraph(slug: string, token: string | null): Promise<MindGraphData> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/graph`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`mind graph load failed: ${res.status}`);
+  return (await res.json()) as MindGraphData;
+}
+
 export async function fetchConversations(
   slug: string,
   token: string | null,

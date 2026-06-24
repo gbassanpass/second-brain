@@ -25,16 +25,25 @@ import {
 import { useSession } from '../lib/useSession';
 import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
+import { MindGraph } from './MindGraph';
 import { MindScoreCard } from './MindScoreCard';
 import { TrainRoom } from './TrainRoom';
 
-type Section = 'insights' | 'conversations' | 'audience' | 'knowledge' | 'profile' | 'train';
+type Section =
+  | 'insights'
+  | 'conversations'
+  | 'audience'
+  | 'knowledge'
+  | 'mind'
+  | 'profile'
+  | 'train';
 
 const NAV: { id: Section; label: string; icon: string }[] = [
   { id: 'insights', label: 'Insights', icon: '📈' },
   { id: 'conversations', label: 'Conversas', icon: '💬' },
   { id: 'audience', label: 'Audiência', icon: '👥' },
   { id: 'knowledge', label: 'Conhecimento', icon: '🧠' },
+  { id: 'mind', label: 'Mente 3D', icon: '🌐' },
   { id: 'profile', label: 'Persona', icon: '🪪' },
   { id: 'train', label: 'Treinar', icon: '🎯' },
 ];
@@ -204,6 +213,8 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
           )}
 
           {section === 'audience' && <AccessCodesSection slug={slug} token={accessToken} />}
+
+          {section === 'mind' && <MindGraph slug={slug} token={accessToken} />}
 
           {section === 'train' && (
             <TrainRoom slug={slug} displayName={displayName} token={accessToken} />

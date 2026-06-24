@@ -22,6 +22,7 @@ import {
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
 import { addKnowledge } from '../services/knowledge.js';
+import { getMindGraph } from '../services/mind-graph.js';
 import { getMindScore } from '../services/mind-score.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
@@ -376,6 +377,13 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     const owned = await ownedCreatorId(c);
     if (typeof owned !== 'string') return owned;
     return c.json(await getMindScore(getDb(), owned));
+  });
+
+  // Mind graph (F1.18) — owner-only; nodes/links for the 3D visualization.
+  router.get('/:slug/graph', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json(await getMindGraph(getDb(), owned));
   });
 
   // Access codes (F1.17) — owner-only CRUD. The redeem endpoint lives on the
