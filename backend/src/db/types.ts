@@ -4,6 +4,7 @@ import {
   accessCodes,
   accessGrants,
   consents,
+  contentIdeas,
   contentSources,
   conversations,
   creators,
@@ -241,6 +242,12 @@ export const kgRelationsSelectSchema = createSelectSchema(kgRelations);
 export type KgRelationInsert = z.infer<typeof kgRelationsInsertSchema>;
 export type KgRelationRow = z.infer<typeof kgRelationsSelectSchema>;
 
+// ---- content ideas (Insights) ----
+export const contentIdeasInsertSchema = createInsertSchema(contentIdeas);
+export const contentIdeasSelectSchema = createSelectSchema(contentIdeas);
+export type ContentIdeaInsert = z.infer<typeof contentIdeasInsertSchema>;
+export type ContentIdeaRow = z.infer<typeof contentIdeasSelectSchema>;
+
 // ============================================================================
 // Catalog — single source of truth for "every table has insert+select schemas".
 // Tests iterate over this so new tables fail loudly if their schemas are missing.
@@ -268,6 +275,7 @@ export const tableSchemas = {
   accessGrants: { insert: accessGrantsInsertSchema, select: accessGrantsSelectSchema },
   kgEntities: { insert: kgEntitiesInsertSchema, select: kgEntitiesSelectSchema },
   kgRelations: { insert: kgRelationsInsertSchema, select: kgRelationsSelectSchema },
+  contentIdeas: { insert: contentIdeasInsertSchema, select: contentIdeasSelectSchema },
 } as const;
 
 export type TableName = keyof typeof tableSchemas;

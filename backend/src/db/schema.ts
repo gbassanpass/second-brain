@@ -315,6 +315,31 @@ export const kgRelations = pgTable(
   }),
 );
 
+// Content ideas (Insights): pautas sugeridas pela IA a partir da demanda da
+// audiência. Persistidas para o criador revisitar; `script` é o roteiro gerado
+// sob demanda ao abrir a pauta.
+export const contentIdeas = pgTable(
+  'content_ideas',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    creatorId: uuid('creator_id')
+      .notNull()
+      .references(() => creators.id),
+    title: text('title').notNull(),
+    angle: text('angle').notNull(),
+    /** demanda | lacuna — por que foi sugerida. */
+    basedOn: text('based_on'),
+    /** A pergunta da audiência que motivou a pauta (o "porquê"). */
+    sourceQuestion: text('source_question'),
+    /** Roteiro completo, gerado sob demanda ao abrir a pauta (markdown). */
+    script: text('script'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    creatorTitleUq: uniqueIndex('content_ideas_creator_title_uq').on(t.creatorId, t.title),
+  }),
+);
+
 // =============================================================================
 // Typed re-exports — facilitam imports.
 // =============================================================================
@@ -332,6 +357,7 @@ export const schema = {
   accessGrants,
   kgEntities,
   kgRelations,
+  contentIdeas,
 };
 
 export type Schema = typeof schema;

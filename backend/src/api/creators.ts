@@ -13,7 +13,11 @@ import {
   setAccessCodeActive,
 } from '../services/access-codes.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
-import { generateContentIdeas } from '../services/content-ideas.js';
+import {
+  generateContentIdeas,
+  generateIdeaScript,
+  listContentIdeas,
+} from '../services/content-ideas.js';
 import { getConversationMessages, listConversations } from '../services/conversations.js';
 import {
   createCreator,
@@ -189,8 +193,15 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     return c.json(await getCreatorAnalytics(getDb(), creatorId));
   });
 
-  // Content ideas (best-in-class Insights) — owner-only LLM suggestions from
-  // audience demand + content gaps.
+  // Content ideas (best-in-class Insights) — owner-only. GET lists persisted
+  // ideas; POST generates fresh ones from demand+gaps; POST :id/script writes
+  // the full roteiro on demand.
+  router.get('/:slug/content-ideas', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json({ ideas: await listContentIdeas(getDb(), owned) });
+  });
+
   router.post('/:slug/content-ideas', ...studioGate, async (c) => {
     if (!deps.getLLM) return c.json({ error: 'ideas_not_configured' }, 503);
     const owned = await ownedCreatorId(c);
@@ -200,6 +211,21 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       model: deps.personaModel ?? 'claude-haiku-4-5',
     });
     return c.json({ ideas });
+  });
+
+  router.post('/:slug/content-ideas/:id/script', ...studioGate, async (c) => {
+    if (!deps.getLLM) return c.json({ error: 'ideas_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const body = (await c.req.json().catch(() => null)) as { force?: unknown } | null;
+    const idea = await generateIdeaScript(getDb(), deps.getLLM(), {
+      creatorId: owned,
+      ideaId: c.req.param('id'),
+      model: deps.personaModel ?? 'claude-haiku-4-5',
+      force: body?.force === true,
+    });
+    if (!idea) return c.json({ error: 'idea_not_found' }, 404);
+    return c.json({ idea });
   });
 
   // Conversas que a audiência teve com o clone (F1.13).

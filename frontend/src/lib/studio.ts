@@ -72,12 +72,29 @@ export interface CreatorAnalytics {
 }
 
 export interface ContentIdea {
+  id: string;
   title: string;
   angle: string;
   basedOn: 'demanda' | 'lacuna';
+  sourceQuestion: string | null;
+  script: string | null;
+  createdAt: string;
 }
 
+/** Stored ideas (persisted), newest first. */
 export async function fetchContentIdeas(
+  slug: string,
+  token: string | null,
+): Promise<ContentIdea[]> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/content-ideas`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`content ideas load failed: ${res.status}`);
+  return ((await res.json()) as { ideas: ContentIdea[] }).ideas;
+}
+
+/** Generate fresh ideas from demand + gaps; returns the updated list. */
+export async function generateContentIdeas(
   slug: string,
   token: string | null,
 ): Promise<ContentIdea[]> {
@@ -87,6 +104,21 @@ export async function fetchContentIdeas(
   });
   if (!res.ok) throw new Error(`content ideas failed: ${res.status}`);
   return ((await res.json()) as { ideas: ContentIdea[] }).ideas;
+}
+
+/** Generate (or fetch cached) the full script for one idea. `force` rewrites it. */
+export async function generateIdeaScript(
+  slug: string,
+  id: string,
+  token: string | null,
+  force = false,
+): Promise<ContentIdea> {
+  const res = await fetch(
+    `/api/creators/${encodeURIComponent(slug)}/content-ideas/${encodeURIComponent(id)}/script`,
+    { method: 'POST', headers: authHeaders(token), body: JSON.stringify({ force }) },
+  );
+  if (!res.ok) throw new Error(`idea script failed: ${res.status}`);
+  return ((await res.json()) as { idea: ContentIdea }).idea;
 }
 
 /** USD with enough precision to show sub-cent per-answer costs. */
