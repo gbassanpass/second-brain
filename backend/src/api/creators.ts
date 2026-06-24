@@ -9,6 +9,7 @@ import { personaCardSchema } from '../rag/persona.js';
 import {
   createAccessCode,
   listAccessCodes,
+  listAudience,
   setAccessCodeActive,
 } from '../services/access-codes.js';
 import { getCreatorAnalytics } from '../services/analytics.js';
@@ -455,6 +456,13 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
     const owned = await ownedCreatorId(c);
     if (typeof owned !== 'string') return owned;
     return c.json({ codes: await listAccessCodes(getDb(), owned) });
+  });
+
+  // Who entered the audience via a code + their chat activity (F1.17/F1.15).
+  router.get('/:slug/audience', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    return c.json({ members: await listAudience(getDb(), owned) });
   });
 
   router.post('/:slug/access-codes', ...studioGate, async (c) => {

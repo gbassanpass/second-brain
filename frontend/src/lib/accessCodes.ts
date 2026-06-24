@@ -20,6 +20,24 @@ function authHeaders(token: string | null): Record<string, string> {
   return h;
 }
 
+export interface AudienceMember {
+  userId: string;
+  email: string | null;
+  code: string | null;
+  codeLabel: string | null;
+  redeemedAt: string;
+  conversations: number;
+  lastActivity: string | null;
+}
+
+export async function fetchAudience(slug: string, token: string | null): Promise<AudienceMember[]> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/audience`, {
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`audience load failed: ${res.status}`);
+  return ((await res.json()) as { members: AudienceMember[] }).members;
+}
+
 export async function fetchAccessCodes(slug: string, token: string | null): Promise<AccessCode[]> {
   const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/access-codes`, {
     headers: authHeaders(token),

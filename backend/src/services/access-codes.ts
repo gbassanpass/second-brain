@@ -1,7 +1,7 @@
 import { randomInt } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
-import { accessCodes, accessGrants } from '../db/schema.js';
+import { accessCodes, accessGrants, conversations, messages, users } from '../db/schema.js';
 
 /** Unambiguous alphabet (no 0/O/1/I) so codes are easy to read/share/type. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -167,4 +167,62 @@ function toRow(row: typeof accessCodes.$inferSelect): AccessCodeRow {
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
   };
+}
+
+/** A person who redeemed an access code, with their chat activity (F1.17/F1.15). */
+export interface AudienceMember {
+  userId: string;
+  email: string | null;
+  code: string | null;
+  codeLabel: string | null;
+  redeemedAt: string;
+  conversations: number;
+  lastActivity: string | null;
+}
+
+/**
+ * Who entered the audience via an access code, newest first — with whether they
+ * actually talked (conversation count + last activity) so the creator sees not
+ * just who got in, but who engaged.
+ */
+export async function listAudience(db: Database, creatorId: string): Promise<AudienceMember[]> {
+  const grants = await db
+    .select({
+      userId: accessGrants.userId,
+      email: users.email,
+      code: accessCodes.code,
+      codeLabel: accessCodes.label,
+      redeemedAt: accessGrants.createdAt,
+    })
+    .from(accessGrants)
+    .leftJoin(users, eq(accessGrants.userId, users.id))
+    .leftJoin(accessCodes, eq(accessGrants.codeId, accessCodes.id))
+    .where(eq(accessGrants.creatorId, creatorId))
+    .orderBy(desc(accessGrants.createdAt));
+
+  // Chat activity per audience member for this creator.
+  const activity = await db
+    .select({
+      userId: conversations.userId,
+      convs: sql<number>`count(distinct ${conversations.id})`,
+      last: sql<string | null>`max(${messages.createdAt})`,
+    })
+    .from(conversations)
+    .leftJoin(messages, eq(messages.conversationId, conversations.id))
+    .where(eq(conversations.creatorId, creatorId))
+    .groupBy(conversations.userId);
+  const byUser = new Map(activity.map((a) => [a.userId, a]));
+
+  return grants.map((g) => {
+    const act = byUser.get(g.userId);
+    return {
+      userId: g.userId,
+      email: g.email,
+      code: g.code,
+      codeLabel: g.codeLabel,
+      redeemedAt: g.redeemedAt.toISOString(),
+      conversations: Number(act?.convs ?? 0),
+      lastActivity: act?.last ? new Date(act.last).toISOString() : null,
+    };
+  });
 }

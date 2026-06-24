@@ -3,9 +3,11 @@
 import { useEffect, useState } from 'react';
 import {
   type AccessCode,
+  type AudienceMember,
   accessCodeLink,
   createAccessCode,
   fetchAccessCodes,
+  fetchAudience,
   setAccessCodeActive,
 } from '../lib/accessCodes';
 
@@ -155,6 +157,73 @@ export function AccessCodesSection({ slug, token }: { slug: string; token: strin
                 >
                   {code.active ? 'Desativar' : 'Reativar'}
                 </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <AudienceMembers slug={slug} token={token} />
+    </div>
+  );
+}
+
+const dateFmt = (iso: string) => new Date(iso).toLocaleDateString('pt-BR');
+
+/** Who actually entered via a code + whether they engaged (F1.17/F1.15). */
+function AudienceMembers({ slug, token }: { slug: string; token: string | null }) {
+  const [members, setMembers] = useState<AudienceMember[] | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchAudience(slug, token)
+      .then((m) => active && setMembers(m))
+      .catch(() => active && setMembers([]));
+    return () => {
+      active = false;
+    };
+  }, [slug, token]);
+
+  if (members === null) return <p className="text-sm text-zinc-500">Carregando audiência…</p>;
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between">
+        <h3 className="text-sm font-medium text-zinc-200">Quem entrou</h3>
+        <span className="text-xs text-zinc-500">{members.length} pessoas</span>
+      </div>
+      {members.length === 0 ? (
+        <p className="text-sm text-zinc-500">
+          Ninguém resgatou um código ainda. Compartilhe o link de um código acima.
+        </p>
+      ) : (
+        <ul className="flex flex-col divide-y divide-zinc-800 overflow-hidden rounded-2xl border border-zinc-800 bg-bg-sidebar">
+          {members.map((m) => (
+            <li
+              key={m.userId}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm text-zinc-200">{m.email ?? 'usuário sem e-mail'}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  entrou {dateFmt(m.redeemedAt)}
+                  {m.code ? ` · código ${m.code}` : ''}
+                  {m.codeLabel ? ` (${m.codeLabel})` : ''}
+                </p>
+              </div>
+              <div className="text-right text-xs">
+                {m.conversations > 0 ? (
+                  <>
+                    <p className="text-accent-gold">
+                      {m.conversations} {m.conversations === 1 ? 'conversa' : 'conversas'}
+                    </p>
+                    {m.lastActivity ? (
+                      <p className="text-zinc-500">ativo {dateFmt(m.lastActivity)}</p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-zinc-600">ainda não conversou</p>
+                )}
               </div>
             </li>
           ))}

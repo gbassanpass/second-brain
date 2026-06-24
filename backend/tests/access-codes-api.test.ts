@@ -151,6 +151,35 @@ describe.skipIf(!dbReachable)('Access codes (F1.17)', () => {
     });
   });
 
+  it('lists who entered via a code in /audience (owner-only)', async () => {
+    const sub = await provision('subscriber');
+    const { code } = (await (await createCode(operatorToken, { label: 'Beta' })).json()) as {
+      code: { code: string };
+    };
+    await redeem(sub.token, code.code);
+
+    // not the owner → 403
+    expect(
+      (
+        await app.request(`/api/creators/${slug}/audience`, {
+          headers: { authorization: `Bearer ${sub.token}` },
+        })
+      ).status,
+    ).toBe(403);
+
+    const res = await app.request(`/api/creators/${slug}/audience`, {
+      headers: { authorization: `Bearer ${operatorToken}` },
+    });
+    expect(res.status).toBe(200);
+    const { members } = (await res.json()) as {
+      members: { userId: string; code: string | null; conversations: number }[];
+    };
+    const mine = members.find((m) => m.userId === sub.userId);
+    expect(mine).toBeTruthy();
+    expect(mine?.code).toBe(code.code);
+    expect(mine?.conversations).toBe(0); // redeemed but hasn't chatted
+  });
+
   it('422 for an unknown code, and a deactivated code stops working', async () => {
     const sub = await provision('subscriber');
     const bad = await redeem(sub.token, 'NOPECODE');
