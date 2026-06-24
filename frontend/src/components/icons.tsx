@@ -98,3 +98,44 @@ export const IconExpand = (p: IconProps) => (
     <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M3 16v3a2 2 0 0 0 2 2h3" />
   </Base>
 );
+
+export const IconPlay = (p: IconProps) => (
+  <Base fill="currentColor" stroke="none" {...p}>
+    <path d="M8 5v14l11-7z" />
+  </Base>
+);
+
+// ---- Brand glyphs (simplified) for the "connect your channels" section ----
+type BrandProps = SVGProps<SVGSVGElement>;
+function BrandBase({ children, ...props }: BrandProps & { children: React.ReactNode }) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      {...props}
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const IconInstagram = (p: BrandProps) => (
+  <BrandBase {...p}>
+    <path d="M12 2.16c3.2 0 3.58 0 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s0 3.58-.07 4.85c-.15 3.23-1.66 4.77-4.92 4.92-1.27.06-1.65.07-4.85.07s-3.58 0-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92C2.17 15.58 2.16 15.2 2.16 12s0-3.58.07-4.85C2.38 3.92 3.9 2.38 7.15 2.23 8.42 2.17 8.8 2.16 12 2.16zm0 1.8c-3.15 0-3.5 0-4.74.07-2.34.1-3.26 1.05-3.36 3.36C3.83 8.5 3.82 8.85 3.82 12s0 3.5.08 4.74c.1 2.3 1.02 3.26 3.36 3.36 1.24.06 1.59.07 4.74.07s3.5 0 4.74-.07c2.34-.1 3.26-1.06 3.36-3.36.06-1.24.07-1.59.07-4.74s0-3.5-.07-4.74c-.1-2.3-1.02-3.26-3.36-3.36C15.5 3.97 15.15 3.96 12 3.96zM12 6.86A5.14 5.14 0 1 0 12 17.14 5.14 5.14 0 0 0 12 6.86zm0 8.48A3.34 3.34 0 1 1 12 8.66a3.34 3.34 0 0 1 0 6.68zm5.34-9.4a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z" />
+  </BrandBase>
+);
+
+export const IconYoutube = (p: BrandProps) => (
+  <BrandBase {...p}>
+    <path d="M23.5 6.5a3 3 0 0 0-2.1-2.1C19.5 3.9 12 3.9 12 3.9s-7.5 0-9.4.5A3 3 0 0 0 .5 6.5 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.5 3 3 0 0 0 2.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.5zM9.6 15.6V8.4l6.3 3.6-6.3 3.6z" />
+  </BrandBase>
+);
+
+export const IconTiktok = (p: BrandProps) => (
+  <BrandBase {...p}>
+    <path d="M16.6 5.8a4.3 4.3 0 0 1-1-2.8h-3.3v12.9a2.5 2.5 0 1 1-2.5-2.5c.26 0 .5.04.74.11V9.9a5.9 5.9 0 0 0-.74-.05 5.85 5.85 0 1 0 5.85 5.85V8.9a7.4 7.4 0 0 0 4.3 1.38V6.9a4.3 4.3 0 0 1-3.35-1.1z" />
+  </BrandBase>
+);

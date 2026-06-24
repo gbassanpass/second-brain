@@ -6,9 +6,13 @@ import {
   IconAudience,
   IconConversations,
   IconInsights,
+  IconInstagram,
   IconKnowledge,
   IconMind,
   IconPersona,
+  IconPlay,
+  IconTiktok,
+  IconYoutube,
 } from '../components/icons';
 
 export const metadata: Metadata = {
@@ -19,6 +23,12 @@ export const metadata: Metadata = {
 
 const DEMO = '/c/fausto-bassan/chat';
 
+// Bar heights for the voice waveform mock (stable ids → not index keys).
+const WAVE = [10, 22, 14, 30, 18, 26, 12, 28, 16, 24, 10, 20, 14, 30, 18].map((h, i) => ({
+  id: `wave-${i}`,
+  h,
+}));
+
 export default function HomePage() {
   return (
     <div className="bg-bg text-zinc-100">
@@ -26,7 +36,13 @@ export default function HomePage() {
       <Hero />
       <TrustBar />
       <Reveal>
+        <Connectors />
+      </Reveal>
+      <Reveal>
         <Features />
+      </Reveal>
+      <Reveal>
+        <VoiceSpotlight />
       </Reveal>
       <Reveal>
         <UseCases />
@@ -527,6 +543,103 @@ function Pricing() {
             </a>
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function Connectors() {
+  const channels = [
+    { Icon: IconInstagram, name: 'Instagram', status: 'ativo' },
+    { Icon: IconYoutube, name: 'YouTube', status: 'em breve' },
+    { Icon: IconTiktok, name: 'TikTok', status: 'em breve' },
+  ];
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-16 text-center">
+      <p className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
+        Conecte suas redes
+      </p>
+      <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
+        Lemos o seu conteúdo — você não digita nada
+      </h2>
+      <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-400">
+        Cole o link do seu perfil e importamos seus posts automaticamente. Sem upload manual, sem
+        login das suas redes.
+      </p>
+      <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+        {channels.map((ch, i) => (
+          <div
+            key={ch.name}
+            className="animate-floaty flex w-32 flex-col items-center gap-2 rounded-2xl border border-zinc-800 bg-bg-sidebar px-4 py-5"
+            style={{ animationDelay: `${i * 0.6}s` }}
+          >
+            <ch.Icon className="text-zinc-200" />
+            <span className="text-sm text-zinc-200">{ch.name}</span>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] ${
+                ch.status === 'ativo'
+                  ? 'bg-accent-gold/15 text-accent-gold'
+                  : 'bg-zinc-800 text-zinc-500'
+              }`}
+            >
+              {ch.status}
+            </span>
+          </div>
+        ))}
+        <span className="text-2xl text-zinc-600">→</span>
+        <div className="flex w-32 flex-col items-center gap-2 rounded-2xl border border-accent-gold/40 bg-accent-gold/5 px-4 py-5">
+          <span className="text-accent-gold">
+            <IconMind />
+          </span>
+          <span className="text-sm font-medium text-zinc-100">sua mente</span>
+          <span className="rounded-full bg-accent-gold px-2 py-0.5 text-[10px] font-semibold text-accent">
+            pronta
+          </span>
+        </div>
+      </div>
+      <p className="mt-6 text-xs text-zinc-600">
+        Também aceita texto, Q&A e arquivos — adicione conhecimento a qualquer momento.
+      </p>
+    </section>
+  );
+}
+
+function VoiceSpotlight() {
+  return (
+    <section className="border-zinc-800/70 border-y bg-bg-sidebar/40">
+      <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 py-20 md:grid-cols-2">
+        <div>
+          <span className="text-xs font-semibold uppercase tracking-wide text-accent-gold">
+            Voz
+          </span>
+          <h2 className="mt-2 font-display text-2xl font-medium tracking-tight md:text-3xl">
+            A sua voz — não uma voz genérica
+          </h2>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-zinc-400">
+            O clone responde por áudio com a sua voz clonada. Voz retém ~5× mais que texto: sua
+            audiência ouve você, mesmo quando você não está.
+          </p>
+        </div>
+        {/* Voice player mock with animated waveform */}
+        <div className="flex items-center gap-4 rounded-3xl border border-zinc-800 bg-black p-6 shadow-xl">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-gold text-accent">
+            <IconPlay width={20} height={20} />
+          </span>
+          <div className="flex flex-1 items-end gap-1" aria-hidden>
+            {WAVE.map((bar, i) => (
+              <span
+                key={bar.id}
+                className="animate-floaty w-1.5 rounded-full bg-accent-gold/70"
+                style={{
+                  height: `${bar.h}px`,
+                  animationDelay: `${i * 0.12}s`,
+                  animationDuration: '1.6s',
+                }}
+              />
+            ))}
+          </div>
+          <span className="shrink-0 text-xs text-zinc-500">0:12</span>
+        </div>
       </div>
     </section>
   );
