@@ -21,6 +21,7 @@ import {
 import { retrieveAndRerank } from '../rag/retrieval.js';
 import { type RoutingDecision, type RoutingReason, pickModel } from '../rag/routing.js';
 import type { Reranker } from '../rerank/base.js';
+import { formatSubgraph, retrieveSubgraph } from './kg-retrieve.js';
 import { getPersonaCard } from './persona.js';
 
 export interface ChatServices {
@@ -42,6 +43,10 @@ export interface ChatLimits {
   routingLongQueryChars?: number;
   /** Min top rerank score to stay on the cheap model. Default 0.3. */
   routingLowConfidenceThreshold?: number;
+  /** GraphRAG (F1.5.2): inject relevant KG facts into the prompt. Default true. */
+  graphRetrievalEnabled?: boolean;
+  /** Max KG facts injected per turn. Default 12. */
+  graphMaxFacts?: number;
 }
 
 export interface ProcessChatInput {
@@ -113,6 +118,8 @@ const DEFAULT_LIMITS: ChatLimits = {
   retrievalTopK: 5,
   rerankScoreThreshold: 0.2,
   historyTurns: 6,
+  graphRetrievalEnabled: true,
+  graphMaxFacts: 12,
 };
 
 /**
@@ -197,6 +204,7 @@ export async function processChat(
 
   const assistant = await runAssistantTurn({
     persona,
+    creatorId: input.creatorId,
     historyOrdered,
     query: input.query,
     retrieval,
@@ -319,6 +327,7 @@ async function loadHistory(
 
 interface AssistantTurnArgs {
   persona: PersonaCard;
+  creatorId: string;
   historyOrdered: LLMMessage[];
   query: string;
   retrieval: Awaited<ReturnType<typeof retrieveAndRerank>>;
@@ -368,6 +377,20 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
     rank: i,
   }));
 
+  // GraphRAG (F1.5.2): augment the prompt with the relevant sub-graph — the
+  // creator's principles/connections around this question — so the clone
+  // reasons in character, not just from isolated snippets.
+  let graphFacts: string[] | undefined;
+  if (args.cfg.graphRetrievalEnabled !== false) {
+    const subgraph = await retrieveSubgraph(args.db, {
+      creatorId: args.creatorId,
+      query: args.query,
+      chunkIds: args.retrieval.hits.map((h) => h.chunkId),
+      maxFacts: args.cfg.graphMaxFacts ?? 12,
+    });
+    if (subgraph.length > 0) graphFacts = formatSubgraph(subgraph);
+  }
+
   const llmArgs = buildLLMArgs({
     personaCard: args.persona,
     query: args.query,
@@ -375,6 +398,7 @@ async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnR
       text: h.text,
       title: meta.get(h.documentId)?.title ?? undefined,
     })),
+    graphFacts,
     history: args.historyOrdered,
     guardrail: args.guardrail,
     model: args.routing.model,

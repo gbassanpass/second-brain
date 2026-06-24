@@ -14,6 +14,11 @@ export interface BuildLLMArgsInput {
   personaCard: PersonaCard;
   query: string;
   chunks: PromptChunk[];
+  /**
+   * Knowledge-graph facts (F1.5.2) — principles/connections of HOW the creator
+   * reasons. Inform tone & coherence; factual claims still cite chunks via [N].
+   */
+  graphFacts?: string[];
   /** Last ~6 turns of the conversation (oldest first). Defaults to []. */
   history?: LLMMessage[];
   /**
@@ -193,11 +198,20 @@ export function buildSystemPrompt(card: PersonaCard): string {
 export function buildUserPrompt(opts: {
   query: string;
   chunks: PromptChunk[];
+  graphFacts?: string[];
   guardrail?: GuardrailDecision;
 }): string {
   const blocks: string[] = [];
   if (opts.guardrail?.flag === 'investment') {
     blocks.push(EDUCATIONAL_MODE_PREAMBLE, '');
+  }
+  if (opts.graphFacts && opts.graphFacts.length > 0) {
+    blocks.push(
+      'PRINCÍPIOS E CONEXÕES (como você pensa — use para raciocinar com coerência,',
+      'mas NÃO cite estes itens com [N]; cite fatos pelos TRECHOS):',
+      ...opts.graphFacts,
+      '',
+    );
   }
   blocks.push('TRECHOS:');
   if (opts.chunks.length === 0) {
@@ -225,6 +239,7 @@ export function buildLLMArgs(input: BuildLLMArgsInput): LLMCompleteArgs {
   const userContent = buildUserPrompt({
     query: input.query,
     chunks: input.chunks,
+    graphFacts: input.graphFacts,
     guardrail: input.guardrail,
   });
   const messages: LLMMessage[] = [...(input.history ?? []), { role: 'user', content: userContent }];
