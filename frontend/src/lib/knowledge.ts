@@ -32,3 +32,38 @@ export async function addKnowledge(
   if (!res.ok) throw new Error(`knowledge add failed: ${res.status}`);
   return (await res.json()) as AddKnowledgeResult;
 }
+
+/** Add knowledge from a URL — backend fetches the page and extracts the text. */
+export async function addKnowledgeUrl(
+  slug: string,
+  url: string,
+  token: string | null,
+): Promise<AddKnowledgeResult> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/knowledge/url`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error(`knowledge url failed: ${res.status}`);
+  return (await res.json()) as AddKnowledgeResult;
+}
+
+/** Add knowledge from an uploaded file (txt/md/pdf). */
+export async function addKnowledgeFile(
+  slug: string,
+  file: File,
+  token: string | null,
+): Promise<AddKnowledgeResult> {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/knowledge/file`, {
+    method: 'POST',
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) throw new Error(`knowledge file failed: ${res.status}`);
+  return (await res.json()) as AddKnowledgeResult;
+}

@@ -36,6 +36,7 @@ import { getMindScore } from '../services/mind-score.js';
 import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js';
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource } from '../services/source-ingest.js';
+import { extractFileText, fetchUrlText } from '../services/source-text.js';
 import { saveTrainingCorrection } from '../services/training.js';
 import {
   type AuthVariables,
@@ -448,6 +449,52 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       title: parsed.data.title,
     });
     return c.json({ added: true, ...result });
+  });
+
+  // Add Knowledge via URL (F1.9): fetch the page, extract text, index it.
+  router.post('/:slug/knowledge/url', ...studioGate, async (c) => {
+    if (!deps.getEmbedder) return c.json({ error: 'knowledge_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const json = await c.req.json().catch(() => null);
+    const parsed = z.object({ url: z.string().url() }).safeParse(json);
+    if (!parsed.success) return c.json({ error: 'invalid_body' }, 400);
+    try {
+      const { title, text } = await fetchUrlText(parsed.data.url);
+      const result = await addKnowledge(getDb(), deps.getEmbedder(), {
+        type: 'note',
+        creatorId: owned,
+        text,
+        title: title ?? parsed.data.url,
+      });
+      return c.json({ added: true, title, ...result });
+    } catch (err) {
+      return c.json({ error: 'url_extract_failed', detail: (err as Error).message }, 422);
+    }
+  });
+
+  // Add Knowledge via file upload (F1.9): txt/md/pdf → extract → index.
+  router.post('/:slug/knowledge/file', ...studioGate, async (c) => {
+    if (!deps.getEmbedder) return c.json({ error: 'knowledge_not_configured' }, 503);
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    const body = await c.req.parseBody().catch(() => null);
+    const file = body?.file;
+    if (!(file instanceof File)) return c.json({ error: 'no_file' }, 400);
+    if (file.size > 10 * 1024 * 1024) return c.json({ error: 'file_too_large' }, 413);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { title, text } = await extractFileText(file.name, bytes);
+      const result = await addKnowledge(getDb(), deps.getEmbedder(), {
+        type: 'note',
+        creatorId: owned,
+        text,
+        title,
+      });
+      return c.json({ added: true, title, ...result });
+    } catch (err) {
+      return c.json({ error: 'file_extract_failed', detail: (err as Error).message }, 422);
+    }
   });
 
   // Leniency (F1.5.4) — owner-only read/update of how far the clone extrapolates.

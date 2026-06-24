@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { type KnowledgeInput, addKnowledge } from '../lib/knowledge';
+import { addKnowledge, addKnowledgeFile, addKnowledgeUrl } from '../lib/knowledge';
 import { generatePersona, importInstagram, parseInstagramHandle } from '../lib/onboarding';
 import {
   type CreatorAnalytics,
@@ -416,9 +416,16 @@ function KnowledgeSection({
   );
 }
 
-type KnowledgeTab = 'note' | 'qa';
+type KnowledgeTab = 'note' | 'qa' | 'url' | 'file';
 
-/** Add Knowledge (F1.9) — manually add free text or a Q&A to the base. */
+const KNOWLEDGE_TABS: { id: KnowledgeTab; label: string }[] = [
+  { id: 'note', label: 'Texto' },
+  { id: 'qa', label: 'Q&A' },
+  { id: 'url', label: 'URL' },
+  { id: 'file', label: 'Arquivo' },
+];
+
+/** Add Knowledge (F1.9) — texto, Q&A, URL ou upload de arquivo. */
 function AddKnowledge({
   slug,
   token,
@@ -433,29 +440,58 @@ function AddKnowledge({
   const [text, setText] = useState('');
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState('');
+  const [url, setUrl] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const ready = tab === 'note' ? text.trim().length > 0 : question.trim() && answer.trim();
+  const ready =
+    tab === 'note'
+      ? text.trim().length > 0
+      : tab === 'qa'
+        ? !!(question.trim() && answer.trim())
+        : tab === 'url'
+          ? /^https?:\/\/\S+/.test(url.trim())
+          : file !== null;
 
   async function submit() {
     if (!ready || busy) return;
-    const input: KnowledgeInput =
-      tab === 'note'
-        ? { type: 'note', text: text.trim(), title: title.trim() || undefined }
-        : { type: 'qa', question: question.trim(), answer: answer.trim() };
     setBusy(true);
     setMsg(null);
     try {
-      await addKnowledge(slug, input, token);
+      if (tab === 'note') {
+        await addKnowledge(
+          slug,
+          { type: 'note', text: text.trim(), title: title.trim() || undefined },
+          token,
+        );
+      } else if (tab === 'qa') {
+        await addKnowledge(
+          slug,
+          { type: 'qa', question: question.trim(), answer: answer.trim() },
+          token,
+        );
+      } else if (tab === 'url') {
+        await addKnowledgeUrl(slug, url.trim(), token);
+      } else if (file) {
+        await addKnowledgeFile(slug, file, token);
+      }
       setMsg('Adicionado e indexado ✓ — o clone já pode usar.');
       setTitle('');
       setText('');
       setQuestion('');
       setAnswer('');
+      setUrl('');
+      setFile(null);
       onAdded();
     } catch {
-      setMsg('Não consegui adicionar agora.');
+      setMsg(
+        tab === 'url'
+          ? 'Não consegui ler essa URL.'
+          : tab === 'file'
+            ? 'Não consegui ler esse arquivo (use .txt, .md ou .pdf).'
+            : 'Não consegui adicionar agora.',
+      );
     } finally {
       setBusy(false);
     }
@@ -465,16 +501,11 @@ function AddKnowledge({
     <div className="rounded-2xl border border-zinc-700 bg-bg-assistant p-4">
       <p className="text-sm font-medium">Adicionar conhecimento</p>
       <p className="mt-1 text-xs text-zinc-500">
-        Ensine o clone com um texto livre ou um par pergunta/resposta. Fica disponível na hora.
+        Texto, par pergunta/resposta, uma página da web ou um arquivo. Fica disponível na hora.
       </p>
 
-      <div className="mt-3 flex gap-2">
-        {(
-          [
-            { id: 'note', label: 'Texto' },
-            { id: 'qa', label: 'Pergunta & resposta' },
-          ] as const
-        ).map((t) => (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {KNOWLEDGE_TABS.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -510,7 +541,7 @@ function AddKnowledge({
               className="resize-y rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
             />
           </>
-        ) : (
+        ) : tab === 'qa' ? (
           <>
             <input
               value={question}
@@ -526,17 +557,33 @@ function AddKnowledge({
               className="resize-y rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
             />
           </>
+        ) : tab === 'url' ? (
+          <input
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://… (um artigo, post ou página sua)"
+            className="rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-accent-gold focus:outline-none"
+          />
+        ) : (
+          <input
+            type="file"
+            accept=".txt,.md,.markdown,.pdf"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="rounded-xl border border-zinc-700 bg-bg px-3 py-2 text-sm text-zinc-300 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-1 file:text-xs file:text-zinc-200"
+          />
         )}
 
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-zinc-600">URL, YouTube e arquivo em breve.</span>
+          <span className="text-[11px] text-zinc-600">
+            {tab === 'file' ? '.txt, .md ou .pdf' : 'YouTube em breve.'}
+          </span>
           <button
             type="button"
             onClick={submit}
             disabled={!ready || busy}
             className="rounded-xl bg-accent-gold px-4 py-2 text-sm font-semibold text-accent transition hover:opacity-90 disabled:opacity-40"
           >
-            {busy ? 'Adicionando…' : 'Adicionar'}
+            {busy ? 'Processando…' : 'Adicionar'}
           </button>
         </div>
         {msg ? <p className="text-xs text-zinc-400">{msg}</p> : null}
