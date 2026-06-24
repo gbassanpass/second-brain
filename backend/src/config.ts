@@ -91,7 +91,17 @@ function buildSchema(isTest: boolean) {
     APIFY_INSTAGRAM_ACTOR: z.string().min(1).default('apify~instagram-scraper'),
     INSTAGRAM_RESULTS_LIMIT: z.coerce.number().int().positive().max(200).default(30),
 
+    // Voz (F1.3): síntese de fala (TTS) da resposta do clone.
+    VOICE_PROVIDER: z.enum(['elevenlabs', 'fake']).default(isTest ? 'fake' : 'elevenlabs'),
     ELEVENLABS_API_KEY: optionalString,
+    // `eleven_multilingual_v2` fala PT-BR bem; v3/turbo são alternativas.
+    VOICE_MODEL: z.string().min(1).default('eleven_multilingual_v2'),
+    // Voz padrão quando o criador não tem `voiceId` próprio. `JBFqnCBsd6RMkjVDRZzb`
+    // ("George" — narrador caloroso) é uma voz **premade**, que funciona na API
+    // mesmo em conta free; vozes da *library* (ex.: "Rachel") exigem plano pago.
+    ELEVENLABS_VOICE_ID: z.string().min(1).default('JBFqnCBsd6RMkjVDRZzb'),
+    // Limite de caracteres por síntese (custo/abuso) — resposta do clone cabe folgado.
+    VOICE_MAX_CHARS: z.coerce.number().int().positive().max(20000).default(5000),
 
     BILLING_PROVIDER: z.enum(['stripe', 'fake']).default(isTest ? 'fake' : 'stripe'),
     STRIPE_SECRET_KEY: optionalString,

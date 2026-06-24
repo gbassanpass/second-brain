@@ -7,6 +7,7 @@ import { createCreatorsRouter } from './api/creators.js';
 import { health } from './api/health.js';
 import { createMeRouter } from './api/me.js';
 import { type EnqueueSyncFn, createSourcesRouter } from './api/sources.js';
+import { createVoiceRouter } from './api/voice.js';
 import type { BillingProvider } from './billing/base.js';
 import { createBillingProvider } from './billing/factory.js';
 import { getConfig } from './config.js';
@@ -16,6 +17,7 @@ import { createEmbedder } from './embeddings/factory.js';
 import { createLLMClient } from './llm/factory.js';
 import { createReranker } from './rerank/factory.js';
 import type { ChatServices } from './services/chat.js';
+import { createVoiceSynth } from './voice/factory.js';
 import { enqueueIngestSync } from './workers/queue.js';
 
 const defaultEnqueueSync: EnqueueSyncFn = (sourceId) => enqueueIngestSync(sourceId);
@@ -45,6 +47,19 @@ const defaultGetChatConfig: ChatRouterDeps['getConfig'] = () => {
   };
 };
 
+const defaultGetVoiceConfig: () => {
+  ELEVENLABS_VOICE_ID: string;
+  VOICE_MODEL: string;
+  VOICE_MAX_CHARS: number;
+} = () => {
+  const c = getConfig();
+  return {
+    ELEVENLABS_VOICE_ID: c.ELEVENLABS_VOICE_ID,
+    VOICE_MODEL: c.VOICE_MODEL,
+    VOICE_MAX_CHARS: c.VOICE_MAX_CHARS,
+  };
+};
+
 export interface AppDeps {
   /** Lazy DB accessor — called only when a route needs the database. Default: `getDb()` from db/client.js. */
   getDb?: () => Database;
@@ -60,6 +75,8 @@ export interface AppDeps {
   jwksUrl?: string;
   /** Lazy billing provider — called only by `POST /api/billing/webhook`. */
   getBillingProvider?: () => BillingProvider;
+  /** Lazy voice synth (ElevenLabs) — called only by `POST /api/voice`. */
+  getVoice?: () => import('./voice/base.js').VoiceSynth;
 }
 
 export function createApp(deps: AppDeps = {}) {
@@ -104,6 +121,14 @@ export function createApp(deps: AppDeps = {}) {
       ...authDeps,
       getServices: deps.getChatServices ?? defaultGetChatServices,
       getConfig: deps.getChatConfig ?? defaultGetChatConfig,
+    }),
+  );
+  app.route(
+    '/api/voice',
+    createVoiceRouter({
+      ...authDeps,
+      getVoice: deps.getVoice ?? (() => createVoiceSynth(getConfig())),
+      getConfig: defaultGetVoiceConfig,
     }),
   );
 

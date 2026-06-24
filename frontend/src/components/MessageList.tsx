@@ -1,19 +1,25 @@
+'use client';
+
 import type { ChatMessage } from '../lib/chat';
 import { Markdown } from './Markdown';
+import { SpeakButton } from './SpeakButton';
 
 interface MessageListProps {
   messages: ChatMessage[];
   /** Creator initials for the assistant avatar. */
   initials: string;
+  /** Creator slug + access token for the "speak" (TTS) button (F1.3). */
+  slug: string;
+  token: string | null;
 }
 
 /** Conversation transcript (doc 11 §MessageList). Assistant left + avatar, user right. */
-export function MessageList({ messages, initials }: MessageListProps) {
+export function MessageList({ messages, initials, slug, token }: MessageListProps) {
   return (
     <div className="flex flex-col gap-6">
       {messages.map((m) =>
         m.role === 'assistant' ? (
-          <AssistantRow key={m.id} message={m} initials={initials} />
+          <AssistantRow key={m.id} message={m} initials={initials} slug={slug} token={token} />
         ) : (
           <UserRow key={m.id} message={m} />
         ),
@@ -22,7 +28,17 @@ export function MessageList({ messages, initials }: MessageListProps) {
   );
 }
 
-function AssistantRow({ message, initials }: { message: ChatMessage; initials: string }) {
+function AssistantRow({
+  message,
+  initials,
+  slug,
+  token,
+}: {
+  message: ChatMessage;
+  initials: string;
+  slug: string;
+  token: string | null;
+}) {
   return (
     <div className="flex gap-3">
       <div
@@ -34,6 +50,11 @@ function AssistantRow({ message, initials }: { message: ChatMessage; initials: s
       <div className="min-w-0 flex-1">
         {message.guardrail ? <GuardrailNotice /> : null}
         {message.pending ? <ThinkingDots /> : <Markdown>{message.content}</Markdown>}
+        {!message.pending && message.content ? (
+          <div className="mt-2">
+            <SpeakButton slug={slug} text={message.content} token={token} />
+          </div>
+        ) : null}
         {message.sources.length > 0 ? <Sources sources={message.sources} /> : null}
       </div>
     </div>

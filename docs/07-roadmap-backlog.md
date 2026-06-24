@@ -77,7 +77,7 @@
 
 ## FASE 1 — Produtizar (1–3 criadores)
 - [ ] **F1.2** Consentimento (tabela `consents`) no onboarding: conteúdo, voz, imagem (upload de contrato). Regra "só clone de si mesmo" + verificação de identidade.
-- [ ] **F1.3** Voz: adaptador ElevenLabs (PVC); resposta falada opcional; gate por plano Pro. (Prioridade alta — voz retém ~5x mais; doc 10.)
+- [x] **F1.3** Voz: **TTS da resposta** ✅ — adaptador `voice/` (ElevenLabs real + fake + factory), `POST /api/voice` (gate de acesso = chat), botão "Ouvir" no chat (lazy + cache + play/pause). Usa `creators.voiceId` ou voz **premade** padrão (`eleven_multilingual_v2` p/ PT-BR). Integração provada contra a API real (aceita a voz; conta free esbarra só em quota de créditos). Testes: `voice-api.test.ts`. **Falta (follow-up, exige plano pago):** clonar a voz real do criador (IVC/PVC) + gate por plano Pro + persistir `voiceId` clonado. (Voz retém ~5x mais; doc 10.)
 - [ ] **F1.4** Canal WhatsApp/Telegram (webhook → mesmo pipeline).
 - [ ] **F1.5** Multi-criador real no Studio (cada criador só vê seus dados).
 - [ ] **F1.6** **Interview mode** (doc 10): gerar perguntas direcionadas a partir das lacunas da persona; respostas viram `documents` de alta confiança e atualizam a Persona Card.

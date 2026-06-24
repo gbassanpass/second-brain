@@ -132,7 +132,12 @@ export function ChatRoom({ view }: { view: LandingView }) {
               onPick={send}
             />
           ) : (
-            <MessageList messages={messages} initials={view.initials} />
+            <MessageList
+              messages={messages}
+              initials={view.initials}
+              slug={view.slug}
+              token={accessToken}
+            />
           )}
           {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
           <div ref={bottomRef} />
