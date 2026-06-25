@@ -520,7 +520,9 @@ describe.skipIf(!dbReachable)('POST /api/chat — orchestrator (integration)', (
     expect(body.fontes).toEqual([]);
     expect(body.usage).toBeNull();
     expect(body.costUsd).toBe(0);
-    expect(llm.calls).toHaveLength(0); // never touched the LLM
+    // One call: the social/factual classifier (no_context safety net). It judged
+    // the message non-social, so the canned refusal is still served (no answer gen).
+    expect(llm.calls).toHaveLength(1);
 
     const db = getDb(DB_URL);
     const [lastAssistant] = await db

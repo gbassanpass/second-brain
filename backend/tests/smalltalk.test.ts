@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { isSmalltalk } from '../src/services/smalltalk.js';
+import type { LLMClient, LLMResult } from '../src/llm/base.js';
+import { isSmalltalk, looksSocial } from '../src/services/smalltalk.js';
+
+function fakeLLM(content: string): LLMClient {
+  return {
+    provider: 'fake',
+    async complete(): Promise<LLMResult> {
+      return { content, model: 'fake', usage: { inputTokens: 1, outputTokens: 1 } };
+    },
+  };
+}
+
+function throwingLLM(): LLMClient {
+  return {
+    provider: 'fake',
+    async complete(): Promise<LLMResult> {
+      throw new Error('llm down');
+    },
+  };
+}
 
 describe('isSmalltalk (A)', () => {
   it('matches greetings, thanks, farewells and identity questions', () => {
@@ -33,5 +52,19 @@ describe('isSmalltalk (A)', () => {
   it('handles empty/blank input', () => {
     expect(isSmalltalk('')).toBe(false);
     expect(isSmalltalk('   ')).toBe(false);
+  });
+});
+
+describe('looksSocial (LLM fallback)', () => {
+  it('returns true when the classifier says "social"', async () => {
+    expect(await looksSocial(fakeLLM('social'), 'e aí, firmeza?', 'm')).toBe(true);
+  });
+
+  it('returns false when the classifier says "factual"', async () => {
+    expect(await looksSocial(fakeLLM('factual'), 'o que você acha do PL?', 'm')).toBe(false);
+  });
+
+  it('fails closed (false) when the LLM throws', async () => {
+    expect(await looksSocial(throwingLLM(), 'oi', 'm')).toBe(false);
   });
 });

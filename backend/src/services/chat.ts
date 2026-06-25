@@ -26,7 +26,7 @@ import type { Reranker } from '../rerank/base.js';
 import { formatSubgraph, retrieveSubgraph, retrieveTopPrinciples } from './kg-retrieve.js';
 import { type Leniency, getLeniency, minFactsToExtrapolate } from './leniency.js';
 import { getPersonaCard } from './persona.js';
-import { isSmalltalk } from './smalltalk.js';
+import { isSmalltalk, looksSocial } from './smalltalk.js';
 
 export interface ChatServices {
   embedder: Embedder;
@@ -469,6 +469,13 @@ async function runSmalltalk(args: AssistantTurnArgs): Promise<AssistantTurnResul
 async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
   if (args.smalltalk) return runSmalltalk(args);
   if (args.retrieval.fallback === 'no_context') {
+    // Safety net for greetings the regex fast-path missed ("e aí, firmeza?").
+    // Only here (no chunks): if the LLM judges the message social, answer in
+    // persona instead of refusing/extrapolating. Investment-flagged turns keep
+    // the educational pipeline (smalltalk never triggers for those upstream).
+    if (!args.guardrail.flag && (await looksSocial(args.llm, args.query, args.routing.model))) {
+      return runSmalltalk(args);
+    }
     // F1.5.3/F1.5.4 — extrapolation: no direct excerpt, but if the graph has
     // enough principles (per the creator's leniency), reason from them instead
     // of refusing. `strict` never extrapolates.
