@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   type CreatedClone,
   type ImportResult,
@@ -27,8 +27,14 @@ export default function OnboardingPage() {
   const [checking, setChecking] = useState(true);
 
   // A returning owner shouldn't see "create a mind" — bounce to their Studio.
+  // Only on the FIRST authenticated check: once the user is in the flow, a
+  // token auto-refresh (which changes accessToken) must NOT re-run this and
+  // yank them to the Studio mid-onboarding — they'd never finish connecting.
+  const bounced = useRef(false);
   useEffect(() => {
     if (status === 'loading' || status === 'anon') return;
+    if (bounced.current) return;
+    bounced.current = true;
     let active = true;
     fetchMe(accessToken)
       .then((me) => {
