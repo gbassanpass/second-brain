@@ -32,6 +32,7 @@ import { InsightsSection } from './InsightsSection';
 import { Markdown } from './Markdown';
 import { MindGraph } from './MindGraph';
 import { MindScoreCard } from './MindScoreCard';
+import { NotificationCenter } from './NotificationCenter';
 import { TrainRoom } from './TrainRoom';
 import {
   IconAudience,
@@ -134,6 +135,14 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
       .catch(() => undefined);
   }, [slug, accessToken]);
 
+  // When an import finishes (notification center), refresh both sources + docs.
+  const reloadKnowledge = useCallback(() => {
+    fetchSources(slug, accessToken)
+      .then(setSources)
+      .catch(() => undefined);
+    reloadDocuments();
+  }, [slug, accessToken, reloadDocuments]);
+
   if (phase === 'loading') return <Centered>Carregando o Studio…</Centered>;
   if (phase === 'anon')
     return (
@@ -193,7 +202,10 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
       {/* Conteúdo da seção */}
       <main className="min-w-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex max-w-3xl flex-col gap-8 px-6 py-10">
-          <h1 className="text-2xl font-semibold">{NAV.find((n) => n.id === section)?.label}</h1>
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold">{NAV.find((n) => n.id === section)?.label}</h1>
+            <NotificationCenter slug={slug} token={accessToken} onComplete={reloadKnowledge} />
+          </div>
 
           {section === 'insights' && (
             <div className="flex flex-col gap-6">
