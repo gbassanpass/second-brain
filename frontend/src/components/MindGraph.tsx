@@ -143,21 +143,44 @@ export function MindGraph({
     };
   }, [fullscreen]);
 
+  // The build now runs on the worker (background). We remember the entity count
+  // at click time so the poller knows when the graph has actually grown.
+  const buildBaseline = useRef(0);
   const extract = useCallback(async () => {
-    setBuilding(true);
-    setBuildMsg(null);
+    buildBaseline.current = kg?.stats.entities ?? 0;
+    setBuildMsg('Mapeando como o clone pensa… isso roda em segundo plano.');
     try {
-      const r = await buildKnowledgeGraph(slug, token);
-      setBuildMsg(
-        `${r.entitiesCreated} entidades e ${r.relationsCreated} relações novas (${r.chunksProcessed} trechos).`,
-      );
-      setKg(await fetchKnowledgeGraph(slug, token));
+      await buildKnowledgeGraph(slug, token);
+      setBuilding(true); // kicks off the polling effect below
     } catch {
-      setBuildMsg('Não consegui extrair o grafo agora.');
-    } finally {
-      setBuilding(false);
+      setBuildMsg('Não consegui iniciar a extração agora.');
     }
-  }, [slug, token]);
+  }, [slug, token, kg]);
+
+  // While a background build runs, refresh the graph until it grows (or we give
+  // up after ~2min). This replaces the old reload-the-page-to-see-it behavior.
+  useEffect(() => {
+    if (!building) return;
+    let active = true;
+    let attempts = 0;
+    const id = setInterval(async () => {
+      attempts += 1;
+      const g = await fetchKnowledgeGraph(slug, token).catch(() => null);
+      if (!active) return;
+      if (g && g.stats.entities > buildBaseline.current) {
+        setKg(g);
+        setBuildMsg(`Grafo pronto: ${g.stats.entities} conceitos e ${g.stats.relations} conexões.`);
+        setBuilding(false);
+      } else if (attempts >= 40) {
+        setBuildMsg('Ainda processando em segundo plano — volte em instantes.');
+        setBuilding(false);
+      }
+    }, 3000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [building, slug, token]);
 
   const data =
     mode === 'estrutura' ? (struct ? structToGraph(struct) : null) : kg ? kgToGraph(kg) : null;
@@ -293,7 +316,9 @@ export function MindGraph({
       ) : !hasNodes ? (
         <div className="rounded-2xl border border-zinc-800 bg-bg-sidebar px-6 py-10 text-center text-sm text-zinc-400">
           {mode === 'conhecimento'
-            ? 'Nenhum grafo de conhecimento ainda. Clique em "Extrair grafo" para o LLM mapear como o clone pensa.'
+            ? building
+              ? 'Mapeando como o clone pensa… o grafo aparece aqui assim que ficar pronto.'
+              : 'O grafo é montado automaticamente após cada importação. Para rodar agora, clique em "Extrair grafo".'
             : 'Ainda não há conteúdo para visualizar.'}
         </div>
       ) : (

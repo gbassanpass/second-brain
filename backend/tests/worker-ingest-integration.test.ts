@@ -114,12 +114,18 @@ describe.skipIf(!ready)('ingest worker end-to-end (Redis + DB)', () => {
     const { worker } = workerHandle ?? {};
     if (!worker) throw new Error('worker not started');
 
+    // Only react to OUR sync job. A dev worker may share this Redis and enqueue
+    // unrelated 'kg-build' jobs; ignore those so they don't fail this test.
     const completed = new Promise<{ sourceId: string; result: unknown }>(
       (resolveCompleted, rejectCompleted) => {
-        worker.once('completed', (job, result) =>
-          resolveCompleted({ sourceId: job.data.sourceId, result }),
-        );
-        worker.once('failed', (_job, err) => rejectCompleted(err));
+        worker.on('completed', (job, result) => {
+          if (job.name !== 'sync') return;
+          resolveCompleted({ sourceId: (job.data as { sourceId: string }).sourceId, result });
+        });
+        worker.on('failed', (job, err) => {
+          if (job && job.name !== 'sync') return;
+          rejectCompleted(err);
+        });
       },
     );
 

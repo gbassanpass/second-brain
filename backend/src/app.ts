@@ -18,9 +18,10 @@ import { createLLMClient } from './llm/factory.js';
 import { createReranker } from './rerank/factory.js';
 import type { ChatServices } from './services/chat.js';
 import { createVoiceSynth } from './voice/factory.js';
-import { enqueueIngestSync } from './workers/queue.js';
+import { enqueueIngestSync, enqueueKgBuild } from './workers/queue.js';
 
 const defaultEnqueueSync: EnqueueSyncFn = (sourceId) => enqueueIngestSync(sourceId);
+const defaultEnqueueKgBuild = (creatorId: string) => enqueueKgBuild(creatorId);
 
 const defaultGetBillingProvider: () => BillingProvider = () => createBillingProvider(getConfig());
 
@@ -65,6 +66,8 @@ export interface AppDeps {
   getDb?: () => Database;
   /** Lazy BullMQ enqueue — called only by `POST /api/sources/:id/sync`. */
   enqueueSync?: EnqueueSyncFn;
+  /** Lazy BullMQ enqueue for the knowledge-graph build — `POST /api/creators/:slug/kg/build`. */
+  enqueueKgBuild?: (creatorId: string) => Promise<{ jobId: string }>;
   /** Lazy chat services (embedder/reranker/llm) — called only by `POST /api/chat`. */
   getChatServices?: () => ChatServices;
   /** Lazy chat-related config — called only by `POST /api/chat`. */
@@ -98,6 +101,7 @@ export function createApp(deps: AppDeps = {}) {
     createCreatorsRouter({
       ...authDeps,
       enqueueSync: deps.enqueueSync ?? defaultEnqueueSync,
+      enqueueKgBuild: deps.enqueueKgBuild ?? defaultEnqueueKgBuild,
       getLLM: () => createLLMClient(getConfig()),
       personaModel: getConfig().LLM_DEFAULT_MODEL,
       getEmbedder: () => createEmbedder(getConfig()),

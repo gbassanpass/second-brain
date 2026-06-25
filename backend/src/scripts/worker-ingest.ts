@@ -35,6 +35,14 @@ async function main() {
     onFailed: (sourceId, err) => {
       console.error(`[worker:ingest] failed source=${sourceId}: ${err.message}`);
     },
+    onKgBuilt: (creatorId, result) => {
+      console.info(
+        `[worker:ingest] kg built creator=${creatorId} entities=${result.entitiesCreated} relations=${result.relationsCreated} chunks=${result.chunksProcessed}`,
+      );
+    },
+    onKgFailed: (creatorId, err) => {
+      console.error(`[worker:ingest] kg failed creator=${creatorId}: ${err.message}`);
+    },
   });
 
   console.info(

@@ -443,12 +443,15 @@ export async function fetchKnowledgeGraph(
 }
 
 export interface BuildKgResult {
-  chunksProcessed: number;
-  chunksFailed: number;
-  entitiesCreated: number;
-  relationsCreated: number;
+  enqueued: boolean;
+  jobId: string;
 }
 
+/**
+ * Kicks off the knowledge-graph build in the BACKGROUND (the worker does the
+ * heavy LLM extraction). Returns once the job is enqueued — the caller polls
+ * `fetchKnowledgeGraph` to see the graph fill in.
+ */
 export async function buildKnowledgeGraph(
   slug: string,
   token: string | null,

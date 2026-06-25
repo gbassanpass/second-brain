@@ -28,7 +28,7 @@ import {
   resolveOwnedCreator,
 } from '../services/creator.js';
 import { upsertDocument } from '../services/documents.js';
-import { buildGraphForCreator, getKnowledgeGraph } from '../services/kg-build.js';
+import { getKnowledgeGraph } from '../services/kg-build.js';
 import { addKnowledge } from '../services/knowledge.js';
 import { LENIENCY_LEVELS, getLeniency, isLeniency, setLeniency } from '../services/leniency.js';
 import { getMindGraph } from '../services/mind-graph.js';
@@ -58,6 +58,8 @@ const createDocumentBody = z.object({
 export interface CreatorsRouterDeps extends RequireAuthDeps {
   /** Enqueue the async ingestion job (BullMQ) for a content source. */
   enqueueSync?: EnqueueSyncFn;
+  /** Enqueue the async knowledge-graph build (BullMQ) for a creator. */
+  enqueueKgBuild?: (creatorId: string) => Promise<{ jobId: string }>;
   /** LLM for auto-generating the Persona Card from content (manual re-gen). */
   getLLM?: () => LLMClient;
   /** Model used for persona generation. */
@@ -539,22 +541,16 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
 
   // Build/extend the knowledge graph by running LLM extraction over the
   // creator's chunks (F1.5.1). Owner-only; runs inline (capped) and idempotent.
+  // Build the knowledge graph in the BACKGROUND (BullMQ). The LLM extraction
+  // over every chunk can take a while; running it inline would blow past HTTP
+  // timeouts (the client saw "Extraindo…" forever and had to reload). The
+  // worker now does the work; the Studio polls the graph until it grows.
   router.post('/:slug/kg/build', ...studioGate, async (c) => {
-    if (!deps.getLLM) return c.json({ error: 'kg_not_configured' }, 503);
+    if (!deps.enqueueKgBuild) return c.json({ error: 'kg_not_configured' }, 503);
     const owned = await ownedCreatorId(c);
     if (typeof owned !== 'string') return owned;
-    const [creator] = await getDb()
-      .select({ displayName: creators.displayName })
-      .from(creators)
-      .where(eq(creators.id, owned))
-      .limit(1);
-    if (!creator) return c.json({ error: 'creator_not_found' }, 404);
-    const result = await buildGraphForCreator(getDb(), deps.getLLM(), {
-      creatorId: owned,
-      creatorName: creator.displayName,
-      model: deps.personaModel ?? 'claude-haiku-4-5',
-    });
-    return c.json(result);
+    const { jobId } = await deps.enqueueKgBuild(owned);
+    return c.json({ enqueued: true, jobId }, 202);
   });
 
   // Access codes (F1.17) — owner-only CRUD. The redeem endpoint lives on the

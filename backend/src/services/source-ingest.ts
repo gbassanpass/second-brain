@@ -25,6 +25,7 @@ export interface SyncSourceCounts {
 
 export interface SyncSourceResult extends SyncSourceCounts {
   sourceId: string;
+  creatorId: string;
   status: 'indexed';
 }
 
@@ -82,7 +83,7 @@ export async function syncContentSource(
       .update(contentSources)
       .set({ status: 'indexed', lastSyncedAt: new Date() })
       .where(eq(contentSources.id, sourceId));
-    return { sourceId, status: 'indexed', ...counts };
+    return { sourceId, creatorId: source.creatorId, status: 'indexed', ...counts };
   } catch (err) {
     await db.update(contentSources).set({ status: 'error' }).where(eq(contentSources.id, sourceId));
     throw err;

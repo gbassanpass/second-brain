@@ -6,6 +6,15 @@ export interface IngestSourceJobData {
   sourceId: string;
 }
 
+export interface KgBuildJobData {
+  creatorId: string;
+}
+
+/** Both job kinds share the ingest queue; the BullMQ job `name` discriminates. */
+export type IngestQueueJobData = IngestSourceJobData | KgBuildJobData;
+
+export const KG_BUILD_JOB_NAME = 'kg-build';
+
 export interface RedisConnectionOptions {
   host: string;
   port: number;
@@ -28,19 +37,19 @@ export function parseRedisUrl(url: string): RedisConnectionOptions {
   };
 }
 
-let cachedQueue: Queue<IngestSourceJobData> | undefined;
+let cachedQueue: Queue<IngestQueueJobData> | undefined;
 
 /**
  * Lazy singleton — opens a BullMQ queue (and underlying Redis connection) on
  * first call. `Queue.close()` from `closeIngestQueue` closes the connection.
  */
-export function getIngestQueue(redisUrl?: string): Queue<IngestSourceJobData> {
+export function getIngestQueue(redisUrl?: string): Queue<IngestQueueJobData> {
   if (cachedQueue) return cachedQueue;
   const url = redisUrl ?? process.env.REDIS_URL;
   if (!url) {
     throw new Error('REDIS_URL is required for the ingest queue');
   }
-  const queue = new Queue<IngestSourceJobData>(INGEST_QUEUE_NAME, {
+  const queue = new Queue<IngestQueueJobData>(INGEST_QUEUE_NAME, {
     connection: parseRedisUrl(url),
   });
   cachedQueue = queue;
@@ -69,4 +78,23 @@ export async function enqueueIngestSync(
     },
   );
   return { jobId: String(job.id ?? `sync-${sourceId}`) };
+}
+
+/**
+ * Enqueue a knowledge-graph build for a creator. Runs in the background on the
+ * ingest worker (LLM extraction can take a while). `removeOnComplete: true`
+ * frees the deduped jobId immediately so a later "Atualizar grafo" can re-run;
+ * while a build is queued/active, the shared jobId blocks duplicate builds.
+ */
+export async function enqueueKgBuild(
+  creatorId: string,
+  redisUrl?: string,
+): Promise<{ jobId: string }> {
+  const queue = getIngestQueue(redisUrl);
+  const job = await queue.add(
+    KG_BUILD_JOB_NAME,
+    { creatorId },
+    { jobId: `kg-${creatorId}`, removeOnComplete: true, removeOnFail: true },
+  );
+  return { jobId: String(job.id ?? `kg-${creatorId}`) };
 }
