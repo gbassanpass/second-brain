@@ -69,40 +69,60 @@ export async function hybridSearch(
   const topK = opts.topK ?? poolSize;
   const embeddingLiteral = `[${opts.queryEmbedding.join(',')}]`;
 
+  // F1.8 enrichment: summary/question rows share a logical chunk with their raw
+  // parent via parent_chunk_id. We rank ALL rows (raw + derived) per leg, then
+  // collapse to the logical chunk (COALESCE(parent_chunk_id, id)) keeping its
+  // BEST rank, and always surface the RAW chunk's text. For raw-only data
+  // (parent_chunk_id IS NULL everywhere) this is identical to the old query.
   const rows = (await db.execute(sql`
-    WITH vector_results AS (
-      SELECT id, document_id, ordinal, text,
-             ROW_NUMBER() OVER (ORDER BY embedding <=> ${embeddingLiteral}::vector) AS rank
+    WITH vector_ranked AS (
+      SELECT COALESCE(parent_chunk_id, id) AS logical_id,
+             ROW_NUMBER() OVER (ORDER BY embedding <=> ${embeddingLiteral}::vector) AS rn
       FROM chunks
       WHERE creator_id = ${opts.creatorId}::uuid
         AND embedding IS NOT NULL
       ORDER BY embedding <=> ${embeddingLiteral}::vector
       LIMIT ${poolSize}
     ),
-    text_results AS (
-      SELECT id, document_id, ordinal, text,
+    vector_results AS (
+      SELECT logical_id AS id, MIN(rn) AS rank FROM vector_ranked GROUP BY logical_id
+    ),
+    text_ranked AS (
+      SELECT COALESCE(parent_chunk_id, id) AS logical_id,
              ROW_NUMBER() OVER (
                ORDER BY ts_rank(tsv, plainto_tsquery('portuguese', ${trimmedQuery})) DESC
-             ) AS rank
+             ) AS rn
       FROM chunks
       WHERE creator_id = ${opts.creatorId}::uuid
         AND tsv @@ plainto_tsquery('portuguese', ${trimmedQuery})
       LIMIT ${poolSize}
+    ),
+    text_results AS (
+      SELECT logical_id AS id, MIN(rn) AS rank FROM text_ranked GROUP BY logical_id
+    ),
+    fused AS (
+      SELECT
+        COALESCE(v.id, t.id) AS logical_id,
+        v.rank AS vector_rank,
+        t.rank AS text_rank,
+        (
+          COALESCE(1.0 / (${k} + v.rank), 0)
+          + COALESCE(1.0 / (${k} + t.rank), 0)
+        ) AS rrf_score
+      FROM vector_results v
+      FULL OUTER JOIN text_results t ON v.id = t.id
     )
     SELECT
-      COALESCE(v.id, t.id) AS chunk_id,
-      COALESCE(v.document_id, t.document_id) AS document_id,
-      COALESCE(v.ordinal, t.ordinal) AS ordinal,
-      COALESCE(v.text, t.text) AS text,
-      v.rank AS vector_rank,
-      t.rank AS text_rank,
-      (
-        COALESCE(1.0 / (${k} + v.rank), 0)
-        + COALESCE(1.0 / (${k} + t.rank), 0)
-      ) AS rrf_score
-    FROM vector_results v
-    FULL OUTER JOIN text_results t ON v.id = t.id
-    ORDER BY rrf_score DESC
+      c.id AS chunk_id,
+      c.document_id AS document_id,
+      c.ordinal AS ordinal,
+      c.text AS text,
+      f.vector_rank AS vector_rank,
+      f.text_rank AS text_rank,
+      f.rrf_score AS rrf_score
+    FROM fused f
+    JOIN chunks c ON c.id = f.logical_id
+    ORDER BY f.rrf_score DESC
     LIMIT ${topK}
   `)) as unknown as HybridSearchRow[];
 

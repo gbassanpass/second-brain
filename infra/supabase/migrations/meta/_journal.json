@@ -71,6 +71,13 @@
       "when": 1782741100000,
       "tag": "0009_suggested_questions",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1782741200000,
+      "tag": "0010_chunk_enrichment",
+      "breakpoints": true
     }
   ]
 }

@@ -135,6 +135,11 @@ export const chunks = pgTable(
     tsv: tsvector('tsv'),
     topic: text('topic'),
     tokenCount: integer('token_count'),
+    // Enrichment (F1.8): 'raw' = original chunk; 'summary'/'question' = derived
+    // rows that share the parent's logical chunk via parent_chunk_id. Search
+    // dedups by logical chunk and always surfaces the raw text.
+    enrichedKind: text('enriched_kind').notNull().default('raw'),
+    parentChunkId: uuid('parent_chunk_id'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

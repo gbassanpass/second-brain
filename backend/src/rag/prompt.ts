@@ -324,7 +324,7 @@ export function buildSmalltalkArgs(input: {
     '- NÃO cite trechos com [N] e NÃO diga "não tenho isso registrado".',
     '- Se for uma saudação, cumprimente de volta e convide a pessoa a perguntar',
     '  sobre os seus temas.',
-    `- Se perguntarem quem você é, esclareça com naturalidade que é a mente`,
+    '- Se perguntarem quem você é, esclareça com naturalidade que é a mente',
     `  digital de ${input.personaCard.name}, treinada no conteúdo dele(a).`,
     '',
     '---',

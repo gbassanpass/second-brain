@@ -4,6 +4,7 @@ import type { Database } from '../db/client.js';
 import { creators } from '../db/schema.js';
 import type { Embedder } from '../embeddings/base.js';
 import type { LLMClient } from '../llm/base.js';
+import { enrichCreatorChunks } from '../services/enrich-chunks.js';
 import { type BuildGraphResult, buildGraphForCreator } from '../services/kg-build.js';
 import { trainPersonaIfMissing } from '../services/persona-gen.js';
 import { type SyncSourceResult, syncContentSource } from '../services/source-ingest.js';
@@ -31,6 +32,8 @@ export interface IngestWorkerOptions {
   /** Fired when a background knowledge-graph build completes. */
   onKgBuilt?: (creatorId: string, result: BuildGraphResult) => void;
   onKgFailed?: (creatorId: string, err: Error) => void;
+  /** Enrich chunks (F1.8) in the kg-build job. Default true; set false to disable. */
+  enrichChunks?: boolean;
 }
 
 type JobResult = SyncSourceResult | (BuildGraphResult & { kind: 'kg-build' });
@@ -61,6 +64,13 @@ export function startIngestWorker(opts: IngestWorkerOptions): IngestWorkerHandle
           creatorName,
           model,
         });
+        // Enrich raw chunks with summaries + hypothetical questions (F1.8) so
+        // retrieval recall goes up. Best-effort; only touches new raw chunks.
+        if (opts.enrichChunks !== false) {
+          await enrichCreatorChunks(opts.db, opts.embedder, opts.llm, { creatorId, model }).catch(
+            () => undefined,
+          );
+        }
         // Refresh the chat's starter questions from the new graph (F1.20).
         await generateSuggestedQuestions(opts.db, opts.llm, {
           creatorId,
