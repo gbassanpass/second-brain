@@ -38,6 +38,7 @@ import { PersonaGenError, generatePersonaCard } from '../services/persona-gen.js
 import { getPersonaCard, setPersonaCard } from '../services/persona.js';
 import { ensureInstagramSource } from '../services/source-ingest.js';
 import { extractFileText, fetchUrlText } from '../services/source-text.js';
+import { getSuggestedQuestions } from '../services/suggested-questions.js';
 import { saveTrainingCorrection } from '../services/training.js';
 import {
   type AuthVariables,
@@ -173,6 +174,19 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       return c.json({ error: 'creator_not_found', slug }, 404);
     }
     return c.json(creator);
+  });
+
+  // Public: starter questions for the chat empty-state (F1.20), generated from
+  // the clone's graph and cached. Empty array if not generated yet → UI falls
+  // back to its static examples.
+  router.get('/:slug/suggested-questions', async (c) => {
+    const [creator] = await getDb()
+      .select({ id: creators.id })
+      .from(creators)
+      .where(eq(creators.slug, c.req.param('slug')))
+      .limit(1);
+    if (!creator) return c.json({ questions: [] });
+    return c.json({ questions: await getSuggestedQuestions(getDb(), creator.id) });
   });
 
   // Studio: indexed content sources + documents (gated).

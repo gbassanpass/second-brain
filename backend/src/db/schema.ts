@@ -41,6 +41,9 @@ export const creators = pgTable('creators', {
   // Leniency (F1.5.4): how far the clone may extrapolate beyond explicit
   // content — 'strict' (nunca) | 'balanced' (default) | 'open' (mais livre).
   leniency: text('leniency').notNull().default('balanced'),
+  // Cached suggested questions (F1.20) — array of strings generated from the
+  // graph in the kg-build job; shown as starter chips in the chat empty-state.
+  suggestedQuestions: jsonb('suggested_questions'),
   status: text('status').notNull().default('active'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });

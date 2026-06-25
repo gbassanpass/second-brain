@@ -7,6 +7,7 @@ import type { LLMClient } from '../llm/base.js';
 import { type BuildGraphResult, buildGraphForCreator } from '../services/kg-build.js';
 import { trainPersonaIfMissing } from '../services/persona-gen.js';
 import { type SyncSourceResult, syncContentSource } from '../services/source-ingest.js';
+import { generateSuggestedQuestions } from '../services/suggested-questions.js';
 import {
   INGEST_QUEUE_NAME,
   type IngestQueueJobData,
@@ -54,11 +55,18 @@ export function startIngestWorker(opts: IngestWorkerOptions): IngestWorkerHandle
           .from(creators)
           .where(eq(creators.id, creatorId))
           .limit(1);
+        const creatorName = creator?.displayName ?? 'o criador';
         const built = await buildGraphForCreator(opts.db, opts.llm, {
           creatorId,
-          creatorName: creator?.displayName ?? 'o criador',
+          creatorName,
           model,
         });
+        // Refresh the chat's starter questions from the new graph (F1.20).
+        await generateSuggestedQuestions(opts.db, opts.llm, {
+          creatorId,
+          creatorName,
+          model,
+        }).catch(() => undefined);
         return { kind: 'kg-build', ...built };
       }
 

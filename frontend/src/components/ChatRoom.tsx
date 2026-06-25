@@ -161,6 +161,8 @@ export function ChatRoom({ view }: { view: LandingView }) {
               displayName={view.displayName}
               tagline={view.tagline}
               suggestions={view.exampleQuestions}
+              slug={view.slug}
+              token={accessToken}
               onPick={send}
             />
           ) : (

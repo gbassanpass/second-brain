@@ -158,6 +158,28 @@ export async function fetchAccess(
   return 'unknown';
 }
 
+/**
+ * Starter questions for the chat empty-state (F1.20), generated from the clone's
+ * graph. Returns [] on any failure so the UI falls back to its static examples.
+ */
+export async function fetchSuggestedQuestions(
+  slug: string,
+  accessToken: string | null,
+): Promise<string[]> {
+  try {
+    const res = await fetch(`/api/creators/${encodeURIComponent(slug)}/suggested-questions`, {
+      headers: authHeaders(accessToken),
+    });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { questions?: unknown };
+    return Array.isArray(body.questions)
+      ? body.questions.filter((q): q is string => typeof q === 'string')
+      : [];
+  } catch {
+    return [];
+  }
+}
+
 /** Open a checkout session and return the hosted URL to redirect to. */
 export async function startCheckout(slug: string, accessToken: string | null): Promise<string> {
   const res = await fetch('/api/billing/checkout', {
