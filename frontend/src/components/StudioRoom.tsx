@@ -12,6 +12,7 @@ import {
   type PersonaForm,
   type SourceSummary,
   canUseStudio,
+  deleteClone,
   fetchAnalytics,
   fetchDocumentDetail,
   fetchDocuments,
@@ -25,6 +26,7 @@ import {
   saveLeniency,
   savePersona,
 } from '../lib/studio';
+import { getSupabaseBrowserClient } from '../lib/supabase';
 import { useSession } from '../lib/useSession';
 import { AccessCodesSection } from './AccessCodesSection';
 import { ConversationsSection } from './ConversationsSection';
@@ -191,12 +193,15 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
             </button>
           ))}
         </nav>
-        <a
-          href={`/c/${slug}/chat`}
-          className="mt-auto rounded-xl bg-accent-gold px-3 py-2 text-center text-sm font-semibold text-accent transition hover:opacity-90"
-        >
-          Testar o clone
-        </a>
+        <div className="mt-auto flex flex-col gap-2 pt-4">
+          <a
+            href={`/c/${slug}/chat`}
+            className="rounded-xl bg-accent-gold px-3 py-2 text-center text-sm font-semibold text-accent transition hover:opacity-90"
+          >
+            Testar o clone
+          </a>
+          <AccountActions slug={slug} token={accessToken} />
+        </div>
       </aside>
 
       {/* Conteúdo da seção */}
@@ -251,6 +256,74 @@ export function StudioRoom({ slug, displayName }: { slug: string; displayName: s
           )}
         </div>
       </main>
+    </div>
+  );
+}
+
+/** Sidebar footer: log out, or permanently delete the clone (with confirm). */
+function AccountActions({ slug, token }: { slug: string; token: string | null }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function logout() {
+    await getSupabaseBrowserClient().auth.signOut();
+    window.location.href = '/login';
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      await deleteClone(slug, token);
+      // No clone left → onboarding lets the user start a fresh test.
+      window.location.href = '/onboarding';
+    } catch {
+      setBusy(false);
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={logout}
+        className="rounded-xl border border-zinc-800 px-3 py-2 text-center text-sm text-zinc-300 transition hover:border-zinc-600 hover:text-zinc-100"
+      >
+        Sair
+      </button>
+      {confirming ? (
+        <div className="flex flex-col gap-1.5 rounded-xl border border-red-500/40 bg-red-500/5 p-2">
+          <p className="px-1 text-[11px] leading-snug text-red-300">
+            Apagar o clone e todos os dados (fontes, conversas, grafo)? Não dá pra desfazer.
+          </p>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={remove}
+              className="flex-1 rounded-lg bg-red-600 px-2 py-1.5 text-xs font-semibold text-white transition hover:bg-red-500 disabled:opacity-50"
+            >
+              {busy ? 'Apagando…' : 'Apagar'}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => setConfirming(false)}
+              className="flex-1 rounded-lg border border-zinc-700 px-2 py-1.5 text-xs text-zinc-300 transition hover:border-zinc-500"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="rounded-xl px-3 py-2 text-center text-xs text-zinc-600 transition hover:text-red-400"
+        >
+          Apagar clone
+        </button>
+      )}
     </div>
   );
 }

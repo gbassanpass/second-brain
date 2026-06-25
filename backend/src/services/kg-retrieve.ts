@@ -1,6 +1,18 @@
-import { and, eq, inArray, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Database } from '../db/client.js';
 import { kgEntities, kgRelations } from '../db/schema.js';
+
+/** Entity kinds that represent HOW the creator thinks (vs. topics/people/events). */
+const PRINCIPLE_KINDS = ['principio', 'heuristica'];
+
+/** Shape selected from kg_relations and turned into a SubgraphFact. */
+interface RelationRow {
+  srcId: string;
+  dstId: string;
+  relation: string;
+  confidence: number;
+  validFrom: Date | null;
+}
 
 /** A single relevant relation from the knowledge graph, ready for the prompt. */
 export interface SubgraphFact {
@@ -72,6 +84,59 @@ export async function retrieveSubgraph(
     .where(and(eq(kgRelations.creatorId, input.creatorId), or(...conds)))
     .limit(maxFacts * 4);
 
+  return hydrateFacts(db, rels, maxFacts);
+}
+
+/**
+ * Extrapolation fallback (F1.5.4): the creator's general METHOD, independent of
+ * the question. When a topic was never discussed (no chunk hits, no entity name
+ * in the query), `retrieveSubgraph` returns nothing — but the clone can still
+ * reason from its principles/heuristics. Returns the highest-confidence
+ * relations touching a `principio`/`heuristica` entity so the clone answers
+ * "pelo meu jeito de pensar…" instead of refusing.
+ */
+export async function retrieveTopPrinciples(
+  db: Database,
+  input: { creatorId: string; maxFacts?: number },
+): Promise<SubgraphFact[]> {
+  const maxFacts = input.maxFacts ?? 12;
+  const principleEnts = await db
+    .select({ id: kgEntities.id })
+    .from(kgEntities)
+    .where(
+      and(eq(kgEntities.creatorId, input.creatorId), inArray(kgEntities.kind, PRINCIPLE_KINDS)),
+    )
+    .limit(200);
+  const pIds = principleEnts.map((e) => e.id);
+  if (pIds.length === 0) return [];
+
+  const rels = await db
+    .select({
+      srcId: kgRelations.srcId,
+      dstId: kgRelations.dstId,
+      relation: kgRelations.relation,
+      confidence: kgRelations.confidence,
+      validFrom: kgRelations.validFrom,
+    })
+    .from(kgRelations)
+    .where(
+      and(
+        eq(kgRelations.creatorId, input.creatorId),
+        or(inArray(kgRelations.srcId, pIds), inArray(kgRelations.dstId, pIds)),
+      ),
+    )
+    .orderBy(desc(kgRelations.confidence))
+    .limit(maxFacts * 4);
+
+  return hydrateFacts(db, rels, maxFacts);
+}
+
+/** Resolve relation rows → readable facts: ids→names, dedupe, confidence-sort, cap. */
+async function hydrateFacts(
+  db: Database,
+  rels: RelationRow[],
+  maxFacts: number,
+): Promise<SubgraphFact[]> {
   if (rels.length === 0) return [];
 
   // Resolve entity ids → names in one round trip.

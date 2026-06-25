@@ -303,6 +303,43 @@ export function buildExtrapolationArgs(input: {
   };
 }
 
+/**
+ * Smalltalk mode (A). Greetings / "tudo bem?" / identity / thanks are social
+ * turns, not factual queries — they must NOT go through retrieval-or-refuse
+ * (otherwise "Olá" gets "não tenho isso registrado"). Answer briefly in the
+ * persona's voice, no chunks, no refusal.
+ */
+export function buildSmalltalkArgs(input: {
+  personaCard: PersonaCard;
+  query: string;
+  history?: LLMMessage[];
+  model: string;
+  maxTokens?: number;
+}): LLMCompleteArgs {
+  const system = buildSystemPrompt(input.personaCard);
+  const content = [
+    'CONVERSA CASUAL — esta mensagem é uma saudação/interação social, não um',
+    'pedido factual. Responda de forma BREVE, calorosa e natural, na sua voz.',
+    'Regras desta resposta (sobrepõem as regras gerais):',
+    '- NÃO cite trechos com [N] e NÃO diga "não tenho isso registrado".',
+    '- Se for uma saudação, cumprimente de volta e convide a pessoa a perguntar',
+    '  sobre os seus temas.',
+    `- Se perguntarem quem você é, esclareça com naturalidade que é a mente`,
+    `  digital de ${input.personaCard.name}, treinada no conteúdo dele(a).`,
+    '',
+    '---',
+    `Mensagem: ${input.query.trim()}`,
+  ].join('\n');
+  const messages: LLMMessage[] = [...(input.history ?? []), { role: 'user', content }];
+  return {
+    model: input.model,
+    system,
+    cacheSystemPrompt: true,
+    messages,
+    maxTokens: input.maxTokens ?? 300,
+  };
+}
+
 function bulletList(items: string[]): string {
   return items.map((s) => `- ${s}`).join('\n');
 }

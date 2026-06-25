@@ -27,6 +27,7 @@ import {
   listSources,
   resolveOwnedCreator,
 } from '../services/creator.js';
+import { deleteCreatorCascade } from '../services/delete-creator.js';
 import { upsertDocument } from '../services/documents.js';
 import { getKnowledgeGraph } from '../services/kg-build.js';
 import { addKnowledge } from '../services/knowledge.js';
@@ -152,6 +153,16 @@ export function createCreatorsRouter(deps: CreatorsRouterDeps): Hono<{ Variables
       ownerUserId: user.id,
     });
     return c.json(created, 201);
+  });
+
+  // Owner-only: permanently delete THIS clone and all its data (sources, docs,
+  // chunks, conversations, graph, codes…). The user account survives. Lets a
+  // creator wipe their own test data and start fresh.
+  router.delete('/:slug', ...studioGate, async (c) => {
+    const owned = await ownedCreatorId(c);
+    if (typeof owned !== 'string') return owned;
+    await deleteCreatorCascade(getDb(), owned);
+    return c.json({ deleted: true });
   });
 
   // Public landing data (E6.1) — anonymous, no auth. Curated subset only.

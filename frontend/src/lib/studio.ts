@@ -464,6 +464,15 @@ export async function buildKnowledgeGraph(
   return (await res.json()) as BuildKgResult;
 }
 
+/** Permanently delete the clone and all its data (owner-only). The account survives. */
+export async function deleteClone(slug: string, token: string | null): Promise<void> {
+  const res = await fetch(`/api/creators/${encodeURIComponent(slug)}`, {
+    method: 'DELETE',
+    headers: authHeaders(token),
+  });
+  if (!res.ok) throw new Error(`delete clone failed: ${res.status}`);
+}
+
 export async function fetchConversations(
   slug: string,
   token: string | null,

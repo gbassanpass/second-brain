@@ -18,13 +18,15 @@ import {
   buildLLMArgs,
   buildReinforcedRetryArgs,
   buildSafeEducationalReply,
+  buildSmalltalkArgs,
 } from '../rag/prompt.js';
-import { retrieveAndRerank } from '../rag/retrieval.js';
+import { type RetrieveAndRerankResult, retrieveAndRerank } from '../rag/retrieval.js';
 import { type RoutingDecision, type RoutingReason, pickModel } from '../rag/routing.js';
 import type { Reranker } from '../rerank/base.js';
-import { formatSubgraph, retrieveSubgraph } from './kg-retrieve.js';
+import { formatSubgraph, retrieveSubgraph, retrieveTopPrinciples } from './kg-retrieve.js';
 import { type Leniency, getLeniency, minFactsToExtrapolate } from './leniency.js';
 import { getPersonaCard } from './persona.js';
+import { isSmalltalk } from './smalltalk.js';
 
 export interface ChatServices {
   embedder: Embedder;
@@ -180,18 +182,26 @@ export async function processChat(
     throw new Error('processChat: failed to insert user message');
   }
 
-  const [queryEmbedding] = await services.embedder.embed([input.query]);
-  if (!queryEmbedding) {
-    throw new Error('processChat: embedder returned no vectors');
-  }
+  // Smalltalk (A): greetings/identity/thanks answer in persona without
+  // retrieval — skips the embed+search spend AND the no_context refusal. Never
+  // for investment-flagged turns (those keep the educational pipeline).
+  const smalltalk = !guardrail.flag && isSmalltalk(input.query);
 
-  const retrieval = await retrieveAndRerank(db, services.reranker, {
-    creatorId: input.creatorId,
-    query: input.query,
-    queryEmbedding,
-    topK: cfg.retrievalTopK,
-    rerankScoreThreshold: cfg.rerankScoreThreshold,
-  });
+  const retrieval: RetrieveAndRerankResult = smalltalk
+    ? { hits: [], fallback: 'no_context' }
+    : await (async () => {
+        const [queryEmbedding] = await services.embedder.embed([input.query]);
+        if (!queryEmbedding) {
+          throw new Error('processChat: embedder returned no vectors');
+        }
+        return retrieveAndRerank(db, services.reranker, {
+          creatorId: input.creatorId,
+          query: input.query,
+          queryEmbedding,
+          topK: cfg.retrievalTopK,
+          rerankScoreThreshold: cfg.rerankScoreThreshold,
+        });
+      })();
 
   const routing = pickModel(
     { query: input.query, rerankScores: retrieval.hits.map((h) => h.rerankScore) },
@@ -221,6 +231,7 @@ export async function processChat(
     db,
     llm: services.llm,
     cfg,
+    smalltalk,
   });
 
   // Defense in depth: if the post-filter caught a recommendation the
@@ -347,6 +358,8 @@ interface AssistantTurnArgs {
   db: Database;
   llm: LLMClient;
   cfg: ChatLimits;
+  /** When true, answer as casual conversation (no retrieval, no refusal). */
+  smalltalk: boolean;
 }
 
 interface AssistantTurnResult {
@@ -424,19 +437,57 @@ async function runExtrapolation(
   };
 }
 
+/**
+ * Smalltalk turn (A): greeting/identity/thanks answered in persona, no chunks,
+ * no refusal. CVM guardrail isn't applicable here (callers only set
+ * `smalltalk` when the investment classifier didn't flag the query).
+ */
+async function runSmalltalk(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
+  const llmArgs = buildSmalltalkArgs({
+    personaCard: args.persona,
+    query: args.query,
+    history: args.historyOrdered,
+    model: args.routing.model,
+    maxTokens: Math.min(args.cfg.maxTokens, 300),
+  });
+  const start = Date.now();
+  const res = await args.llm.complete(llmArgs);
+  const model = res.model || args.routing.model;
+  return {
+    content: res.content,
+    fontes: [],
+    fallback: null,
+    extrapolated: false,
+    model,
+    usage: res.usage,
+    costUsd: estimateCostUsd(model, res.usage),
+    latencyMs: Date.now() - start,
+    postFilter: { action: 'pass', category: null, signals: [] },
+  };
+}
+
 async function runAssistantTurn(args: AssistantTurnArgs): Promise<AssistantTurnResult> {
+  if (args.smalltalk) return runSmalltalk(args);
   if (args.retrieval.fallback === 'no_context') {
     // F1.5.3/F1.5.4 — extrapolation: no direct excerpt, but if the graph has
     // enough principles (per the creator's leniency), reason from them instead
     // of refusing. `strict` never extrapolates.
     const minFacts = minFactsToExtrapolate(args.leniency);
     if (args.cfg.graphRetrievalEnabled !== false && minFacts !== null) {
-      const facts = await retrieveSubgraph(args.db, {
+      const maxFacts = args.cfg.graphMaxFacts ?? 12;
+      let facts = await retrieveSubgraph(args.db, {
         creatorId: args.creatorId,
         query: args.query,
         chunkIds: [],
-        maxFacts: args.cfg.graphMaxFacts ?? 12,
+        maxFacts,
       });
+      // Genuinely-new topic: the question matched no entity in the graph, so
+      // there are no query-specific facts. Fall back to the creator's general
+      // METHOD (principles/heuristics) so it reasons "pelo meu jeito de pensar…"
+      // instead of refusing — without inventing facts about the topic (F1.5.4).
+      if (facts.length < minFacts) {
+        facts = await retrieveTopPrinciples(args.db, { creatorId: args.creatorId, maxFacts });
+      }
       if (facts.length >= minFacts) {
         return runExtrapolation(args, formatSubgraph(facts));
       }
