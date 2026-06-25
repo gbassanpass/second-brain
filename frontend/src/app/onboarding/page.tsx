@@ -166,26 +166,25 @@ export default function OnboardingPage() {
             <p className="text-sm text-zinc-400">
               Estamos importando seu Instagram e treinando a persona{' '}
               <strong className="text-zinc-200">em segundo plano</strong> — pode levar alguns
-              minutos. Acompanhe o status em <strong className="text-zinc-200">Fontes</strong>, no
-              Studio. Você já pode começar a conversar.
+              minutos. Acompanhe pelo sininho 🔔 no Studio; assim que o treino terminar,{' '}
+              <strong className="text-zinc-200">{clone.displayName}</strong> fica pronto pra
+              conversar.
             </p>
           ) : (
             <p className="text-sm text-zinc-400">
-              Você pode conectar fontes a qualquer momento no Studio.
+              Conecte uma fonte (Instagram, link ou arquivo) no Studio para treinar{' '}
+              {clone.displayName} antes de abrir o chat.
             </p>
           )}
           <div className="mt-2 flex flex-col gap-2">
-            <a
-              href={`/c/${clone.slug}/chat`}
-              className="rounded-2xl bg-accent-gold px-5 py-3 text-sm font-semibold text-accent transition hover:opacity-90"
-            >
-              Conversar com {clone.displayName}
-            </a>
+            {/* Sem CTA de chat aqui de propósito: o clone ainda não tem conteúdo
+                indexado, então conversar devolveria vazio. O caminho é o Studio,
+                onde o sininho mostra o progresso e o chat libera quando pronto. */}
             <a
               href={`/studio/${clone.slug}`}
-              className="rounded-2xl border border-zinc-700 px-5 py-3 text-sm text-zinc-300 transition hover:border-accent-gold"
+              className="rounded-2xl bg-accent-gold px-5 py-3 text-sm font-semibold text-accent transition hover:opacity-90"
             >
-              Abrir o Studio
+              Ir para o Studio
             </a>
           </div>
         </section>
